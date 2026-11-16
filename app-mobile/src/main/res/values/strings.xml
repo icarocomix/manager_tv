@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IcaroManagerTV Remote</string>
+    <string name="toolbar_title">IcaroManagerTV</string>
+
+    <!-- Stato del collegamento -->
+    <string name="conn_searching">Ricerca della TV nella rete Wi-Fi…</string>
+    <string name="conn_connecting">Collegamento a %1$s…</string>
+    <string name="conn_connected">Collegato a %1$s</string>
+    <string name="conn_retrying">%1$s non raggiungibile, nuovo tentativo tra %2$d s</string>
+    <string name="conn_failed">%1$s</string>
+    <string name="conn_hint">Accendi la TV, apri IcaroManagerTV e collega il telefono alla stessa rete Wi-Fi.</string>
+    <string name="not_connected">Non collegato alla TV</string>
+
+    <!-- Menu -->
+    <string name="menu_choose_tv">Scegli TV</string>
+    <string name="menu_refresh">Aggiorna</string>
+    <string name="menu_export_logs">Esporta log (TV + telefono)</string>
+    <string name="logs_working">Raccolgo i log di TV e telefono…</string>
+    <string name="logs_saved_both">Log di TV e telefono salvati</string>
+    <string name="logs_saved_phone_only">Salvati solo i log del telefono (TV: %1$s)</string>
+    <string name="logs_failed">Log non esportati: %1$s</string>
+    <string name="choose_tv_title">TV trovate in rete</string>
+    <string name="choose_tv_empty">Nessuna TV trovata finora. Verifica che IcaroManagerTV sia aperta sulla TV e che i dispositivi siano sulla stessa rete.</string>
+    <string name="tv_item">%1$s  (%2$s)</string>
+    <string name="tv_current">%1$s  ✓</string>
+
+    <!-- Barra dei comandi -->
+    <string name="cmd_root">Archivi</string>
+    <string name="cmd_up">Su</string>
+    <string name="cmd_pad">Telecomando</string>
+    <string name="cmd_refresh">Aggiorna</string>
+    <string name="pad_up">Su</string>
+    <string name="pad_down">Giù</string>
+    <string name="pad_left">Sinistra</string>
+    <string name="pad_right">Destra</string>
+    <string name="pad_ok">OK</string>
+    <string name="pad_back">Indietro</string>
+    <string name="cancel">Annulla</string>
+
+    <!-- Player -->
+    <string name="player_back_to_browser">File manager</string>
+    <string name="now_bar_open">Torna al player</string>
+    <string name="tv_layout_mini">Miniatura sulla TV (mostra il file manager)</string>
+    <string name="tv_layout_full">Schermo intero sulla TV</string>
+
+    <string name="credits_description_mobile">Telecomando per IcaroManagerTV: trova da solo la TV nella rete Wi-Fi di casa, mostra in tempo reale le cartelle dei dischi USB collegati al televisore e permette di cercare con la tastiera del telefono, avviare video, musica e foto sulla TV e comandarne il player: pausa, salti, file precedente e successivo, ripresa dal punto interrotto e riproduzione automatica.</string>
+    <string name="credits_libraries_mobile">Realizzata con AndroidX e OkHttp (Apache 2.0).</string>
+</resources>

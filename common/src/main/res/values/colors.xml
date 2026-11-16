@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema scuro unico per TV e telefono: blu notte del marchio con accento ambra. -->
+    <color name="bg">#0C1420</color>
+    <color name="surface">#142030</color>
+    <color name="surface_high">#1D2C40</color>
+    <color name="divider">#2A3B52</color>
+    <color name="text_primary">#ECF1F7</color>
+    <color name="text_secondary">#9AA8BA</color>
+    <color name="accent">#F2B84B</color>
+    <color name="accent_dim">#4D3C1C</color>
+    <color name="ok">#5BD88F</color>
+    <color name="error">#F07178</color>
+    <!-- Voce selezionata (evidenza sincronizzata tra TV e telefono): accento al 22%. -->
+    <color name="selected_bg">#38F2B84B</color>
+    <color name="focus_fill">#26FFFFFF</color>
+    <color name="icon_bg_start">#1F4C7A</color>
+    <color name="icon_bg_end">#0C1A2B</color>
+    <!-- Targa chiara del logo aziendale: il blu scuro del logo non avrebbe contrasto sul fondo. -->
+    <color name="company_plate">#FFFFFF</color>
+</resources>

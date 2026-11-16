@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Targa chiara del logo aziendale nel dialog Info: il blu scuro del logo non avrebbe contrasto
+     sul fondo scuro del dialog. Bianco pieno come il fondo del PNG, bordo sottile. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="14dp" />
+    <solid android:color="@color/company_plate" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/divider" />
+</shape>

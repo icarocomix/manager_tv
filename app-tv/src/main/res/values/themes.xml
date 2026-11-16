@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema TV: sostituisco gli sfondi di selezione con la cornice di focus per il D-pad. -->
+    <style name="Theme.IcaroManager.Tv" parent="Theme.IcaroManager">
+        <item name="selectableItemBackground">@drawable/tv_focus_item</item>
+        <item name="android:selectableItemBackground">@drawable/tv_focus_item</item>
+        <item name="selectableItemBackgroundBorderless">@drawable/tv_focus_item</item>
+        <item name="android:selectableItemBackgroundBorderless">@drawable/tv_focus_item</item>
+        <item name="colorControlHighlight">#40FFFFFF</item>
+    </style>
+
+    <style name="Widget.IcaroManager.Tv.PanelButton" parent="Widget.IcaroManager.TextButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/tv_focus_item</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:focusable">true</item>
+    </style>
+</resources>

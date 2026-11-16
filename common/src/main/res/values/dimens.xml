@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Misure della riga dell'elenco per il telefono; l'app TV le ridefinisce più grandi. -->
+<resources>
+    <dimen name="entry_min_height">56dp</dimen>
+    <dimen name="entry_icon">32dp</dimen>
+    <dimen name="entry_name_text">16sp</dimen>
+    <dimen name="entry_detail_text">12sp</dimen>
+    <dimen name="entry_progress_height">3dp</dimen>
+</resources>

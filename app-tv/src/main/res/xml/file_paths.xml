@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Percorsi esposti dal FileProvider. root-path copre i volumi USB montati sotto /storage o /mnt,
+     che non rientrano nelle categorie standard (external-path è solo il volume primario). Il
+     provider non è esportato: un file diventa leggibile da un'altra app solo con il permesso
+     temporaneo concesso nell'Intent di apertura. -->
+<paths>
+    <root-path name="root" path="/" />
+    <external-path name="external" path="." />
+</paths>

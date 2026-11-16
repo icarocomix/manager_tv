@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="credits_title">Info / Crediti</string>
+    <string name="credits_version">Versione %1$s</string>
+    <string name="credits_created_by">Applicazione creata da</string>
+    <string name="credits_author">IcaroComix</string>
+    <string name="credits_company_logo">Logo di IcaroComix</string>
+    <string name="credits_close">Chiudi</string>
+
+    <string name="root_label">Archivi</string>
+    <string name="crumb_separator">" › "</string>
+    <string name="search_hint">Cerca nella cartella…</string>
+    <string name="search_recursive">Anche nelle sottocartelle</string>
+    <string name="search_clear">Cancella ricerca</string>
+    <string name="searching">Ricerca in corso…</string>
+    <string name="empty_folder">Cartella vuota</string>
+    <string name="no_results">Nessun risultato per «%1$s»</string>
+    <string name="results_count">%1$d risultati</string>
+    <string name="now_playing">In riproduzione: %1$s</string>
+
+    <!-- Player integrato: testi comuni a TV e telefono -->
+    <string name="resume_title">Riprendere la riproduzione?</string>
+    <string name="resume_message">«%1$s» era stato interrotto a %2$s.</string>
+    <string name="resume_from">Riprendi da %1$s</string>
+    <string name="resume_restart">Ricomincia dall\'inizio</string>
+    <string name="now_playing_short">In riproduzione sulla TV</string>
+    <string name="playlist_position">%1$d di %2$d</string>
+    <string name="entry_progress_desc">Visto al %1$d%%</string>
+    <string name="player_play_pause">Riproduci / pausa</string>
+    <string name="player_stop">Ferma</string>
+    <string name="player_start">Inizio</string>
+    <string name="player_end">Fine</string>
+    <string name="player_rewind">Indietro 10 s</string>
+    <string name="player_forward">Avanti 30 s</string>
+    <string name="player_previous">Precedente</string>
+    <string name="player_next">Successivo</string>
+    <string name="player_autoplay">Riproduzione automatica del successivo</string>
+    <string name="player_volume">Volume della TV</string>
+    <string name="player_volume_up">Alza il volume</string>
+    <string name="player_volume_down">Abbassa il volume</string>
+    <string name="player_volume_mute">Audio on/off</string>
+    <string name="player_volume_level">%1$d%%</string>
+    <string name="player_volume_muted">Muto</string>
+</resources>

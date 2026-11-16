@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Telecomando del player integrato della TV: titolo e posizione nella playlist, barra di
+     avanzamento con i tempi, comandi di trasporto, autoplay e disposizione sulla TV. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/player_back"
+        style="@style/Widget.IcaroManager.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="4dp"
+        android:drawableStart="@drawable/ic_back"
+        android:text="@string/player_back_to_browser" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingBottom="16dp">
+
+            <ImageView
+                android:id="@+id/player_icon"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:layout_marginTop="12dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_movie"
+                android:tint="@color/accent" />
+
+            <TextView
+                android:id="@+id/player_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:ellipsize="middle"
+                android:gravity="center"
+                android:maxLines="3"
+                android:textColor="@color/text_primary"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                tools:text="Episodio 02 - La città.mkv" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/player_index"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    tools:text="2 di 12" />
+
+                <ProgressBar
+                    android:id="@+id/player_buffering"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="8dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <SeekBar
+                android:id="@+id/player_seek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                android:progressTint="@color/accent"
+                android:thumbTint="@color/accent" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <TextView
+                    android:id="@+id/player_elapsed"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    tools:text="1:02:03" />
+
+                <TextView
+                    android:id="@+id/player_duration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    tools:text="1:45:00" />
+            </LinearLayout>
+
+            <!-- Trasporto: precedente, -10 s, play/pausa, +30 s, successivo. -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/player_previous"
+                    style="@style/Widget.IcaroManager.PlayerButton"
+                    android:contentDescription="@string/player_previous"
+                    android:src="@drawable/ic_skip_previous" />
+
+                <ImageButton
+                    android:id="@+id/player_rewind"
+                    style="@style/Widget.IcaroManager.PlayerButton"
+                    android:contentDescription="@string/player_rewind"
+                    android:src="@drawable/ic_fast_rewind" />
+
+                <ImageButton
+                    android:id="@+id/player_play_pause"
+                    style="@style/Widget.IcaroManager.PlayerButton"
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
+                    android:background="@drawable/bg_pad_ok"
+                    android:contentDescription="@string/player_play_pause"
+                    android:padding="20dp"
+                    android:src="@drawable/ic_pause"
+                    android:tint="@color/bg" />
+
+                <ImageButton
+                    android:id="@+id/player_forward"
+                    style="@style/Widget.IcaroManager.PlayerButton"
+                    android:contentDescription="@string/player_forward"
+                    android:src="@drawable/ic_fast_forward" />
+
+                <ImageButton
+                    android:id="@+id/player_next"
+                    style="@style/Widget.IcaroManager.PlayerButton"
+                    android:contentDescription="@string/player_next"
+                    android:src="@drawable/ic_skip_next" />
+            </LinearLayout>
+
+            <!-- Salti assoluti e arresto, con etichetta: azioni meno frequenti ma da non confondere. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/player_start"
+                    style="@style/Widget.IcaroManager.BarButton"
+                    android:drawableTop="@drawable/ic_seek_start"
+                    android:text="@string/player_start" />
+
+                <Button
+                    android:id="@+id/player_stop"
+                    style="@style/Widget.IcaroManager.BarButton"
+                    android:drawableTop="@drawable/ic_stop"
+                    android:text="@string/player_stop" />
+
+                <Button
+                    android:id="@+id/player_end"
+                    style="@style/Widget.IcaroManager.BarButton"
+                    android:drawableTop="@drawable/ic_seek_end"
+                    android:text="@string/player_end" />
+            </LinearLayout>
+
+            <!-- Volume di sistema della TV: muto, passo giù, cursore assoluto (nascosto se la TV ha
+                 il volume fisso e lo inoltra via HDMI-CEC), passo su. -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="14dp"
+                android:background="@color/divider" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:paddingHorizontal="4dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/player_volume"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/player_volume_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    tools:text="47%" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/player_volume_mute"
+                    style="@style/Widget.IcaroManager.VolumeButton"
+                    android:contentDescription="@string/player_volume_mute"
+                    android:src="@drawable/ic_volume_off" />
+
+                <ImageButton
+                    android:id="@+id/player_volume_down"
+                    style="@style/Widget.IcaroManager.VolumeButton"
+                    android:contentDescription="@string/player_volume_down"
+                    android:src="@drawable/ic_volume_down" />
+
+                <SeekBar
+                    android:id="@+id/player_volume_seek"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:contentDescription="@string/player_volume"
+                    android:progressTint="@color/accent"
+                    android:thumbTint="@color/accent" />
+
+                <!-- Volume fisso: al posto del cursore resta uno spazio vuoto, i tasti funzionano. -->
+                <Space
+                    android:id="@+id/player_volume_spacer"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:visibility="gone" />
+
+                <ImageButton
+                    android:id="@+id/player_volume_up"
+                    style="@style/Widget.IcaroManager.VolumeButton"
+                    android:contentDescription="@string/player_volume_up"
+                    android:src="@drawable/ic_volume_up" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="14dp"
+                android:background="@color/divider" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/player_autoplay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:drawableStart="@drawable/ic_playlist_play"
+                android:drawablePadding="12dp"
+                android:drawableTint="@color/accent"
+                android:minHeight="48dp"
+                android:text="@string/player_autoplay"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/player_tv_layout"
+                style="@style/Widget.IcaroManager.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:drawableStart="@drawable/ic_pip"
+                android:text="@string/tv_layout_mini" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

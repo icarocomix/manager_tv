@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IcaroManagerTV</string>
+    <string name="tagline">di IcaroComix</string>
+
+    <!-- Volumi -->
+    <string name="volume_usb">Disco USB</string>
+    <string name="volume_internal">Memoria interna</string>
+    <string name="volume_saf">Cartella autorizzata</string>
+    <string name="volume_space">%1$s liberi su %2$s</string>
+    <string name="volume_removed">Disco scollegato: torno all\'elenco degli archivi</string>
+    <string name="no_volumes">Nessun archivio disponibile. Collega un disco USB o concedi il permesso di accesso ai file.</string>
+
+    <!-- Errori -->
+    <string name="error_unreadable">Impossibile leggere %1$s: concedi l\'accesso ai file o verifica che il disco sia collegato.</string>
+    <string name="error_saf_revoked">Autorizzazione della cartella scaduta o disco scollegato: aggiungi di nuovo la cartella.</string>
+    <string name="error_open_uri">Impossibile preparare «%1$s» per il player.</string>
+    <string name="error_open_denied">Il sistema ha negato l\'apertura di «%1$s».</string>
+    <string name="error_no_player">Nessuna app installata può aprire «%1$s». Installa un player come VLC.</string>
+    <string name="error_generic">Errore: %1$s</string>
+    <string name="warning_background_start">Il player potrebbe non comparire: apri IcaroManagerTV sulla TV o abilita «Avvio dal telefono».</string>
+
+    <!-- Servizio -->
+    <string name="notification_channel">Server per lo smartphone</string>
+    <string name="notification_text">In attesa dei comandi dallo smartphone</string>
+
+    <!-- Pannello di stato -->
+    <string name="status_server_off">Server non attivo</string>
+    <string name="status_waiting">In attesa dello smartphone</string>
+    <plurals name="status_clients">
+        <item quantity="one">%d smartphone collegato</item>
+        <item quantity="other">%d smartphone collegati</item>
+    </plurals>
+    <string name="status_address">%1$s : %2$d</string>
+    <string name="status_no_network">Rete non disponibile</string>
+
+    <!-- Pulsanti -->
+    <string name="btn_root">Archivi</string>
+    <string name="btn_refresh">Aggiorna</string>
+    <string name="btn_add_saf">Aggiungi cartella…</string>
+    <string name="btn_permissions">Accesso ai file</string>
+    <string name="btn_overlay">Avvio dal telefono</string>
+    <string name="btn_export_logs">Esporta log</string>
+    <string name="logs_title">Esporta i log dell\'app</string>
+    <string name="logs_to_downloads">Salva in Download/IcaroManagerTV</string>
+    <string name="logs_to_folder">Salva nella cartella aperta (%1$s)</string>
+    <string name="logs_share">Condividi…</string>
+    <string name="logs_from_phone">Dal telefono: menu ⋮ › Esporta log (TV + telefono)</string>
+    <string name="logs_working">Preparo i log…</string>
+    <string name="logs_saved">Log salvati in %1$s</string>
+    <string name="logs_failed">Log non esportati: %1$s</string>
+    <string name="logs_no_share">Nessuna app della TV può ricevere il file: salvalo in Download o scaricalo dal telefono</string>
+    <string name="btn_power">Spegni server ed esci</string>
+
+    <!-- Dialog permessi -->
+    <string name="perm_full_title">Accesso completo ai file</string>
+    <string name="perm_full_message">Con il solo permesso per i contenuti multimediali Android mostra cartelle, video, musica e foto ma nasconde gli altri file (sottotitoli, playlist…). Per vedere tutto concedi «Accesso a tutti i file» nella schermata che si apre.</string>
+    <string name="perm_open_settings">Apri impostazioni</string>
+    <string name="perm_not_now">Non ora</string>
+    <string name="perm_adb_title">Impostazione non disponibile su questa TV</string>
+    <string name="perm_adb_message">Questa TV non offre la schermata per il permesso. Puoi concederlo da un computer con ADB:\n\nadb shell appops set --uid %1$s %2$s allow\n\nIn alternativa usa «Aggiungi cartella…».</string>
+    <string name="perm_denied">Senza permesso di lettura i dischi USB non sono consultabili.</string>
+    <string name="saf_unavailable">Il selettore di cartelle non è disponibile su questa TV: usa «Accesso ai file».</string>
+    <string name="saf_added">Cartella aggiunta agli archivi</string>
+    <string name="overlay_title">Avvio dal telefono</string>
+    <string name="overlay_message">Per avviare un file dal telefono mentre sulla TV è aperto il player, Android richiede il permesso «Mostra sopra altre app».</string>
+    <string name="ok">OK</string>
+
+    <!-- Player integrato -->
+    <string name="player_last_item">È l\'ultimo file della cartella</string>
+    <string name="player_playlist_done">Riproduzione della cartella terminata</string>
+    <string name="player_error">Riproduzione interrotta (%1$s)</string>
+    <string name="player_format_unsupported">Formato di «%1$s» non supportato dal player integrato: apro un player esterno</string>
+    <string name="player_audio_unsupported">L\'audio di «%1$s» non è decodificabile da questa TV: apro un player esterno</string>
+    <string name="player_video_unsupported">Il video di «%1$s» non è decodificabile da questa TV: apro un player esterno</string>
+    <string name="btn_back_to_player">Torna al player</string>
+    <string name="btn_close_player">Chiudi il player</string>
+    <string name="mini_hint">OK: schermo intero</string>
+    <string name="resume_auto">Ripresa automatica tra %1$d s</string>
+
+    <string name="credits_description_tv">File manager per Android TV: sfoglia i dischi USB collegati al televisore e riproduce video e musica con il player integrato (miniatura mentre sfogli, ripresa dal punto interrotto, riproduzione automatica della cartella) e apre foto e altri formati con le app installate. Si controlla anche dallo smartphone con l\'app IcaroManagerTV Remote, che trova la TV da sola nella rete Wi-Fi di casa.</string>
+    <string name="credits_libraries_tv">Realizzata con AndroidX, Media3 ExoPlayer e Session (Apache 2.0) e NanoHTTPD (BSD-3-Clause).</string>
+</resources>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Riga dell'elenco (volume, cartella o file), condivisa da TV e telefono. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="6dp"
+    android:layout_marginVertical="2dp"
+    android:background="@drawable/bg_entry"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/entry_min_height"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp">
+
+    <ImageView
+        android:id="@+id/entry_icon"
+        android:layout_width="@dimen/entry_icon"
+        android:layout_height="@dimen/entry_icon"
+        android:importantForAccessibility="no"
+        tools:src="@drawable/ic_folder" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/entry_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:singleLine="true"
+            android:textColor="@color/text_primary"
+            android:textSize="@dimen/entry_name_text"
+            tools:text="Film" />
+
+        <TextView
+            android:id="@+id/entry_detail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="start"
+            android:singleLine="true"
+            android:textColor="@color/text_secondary"
+            android:textSize="@dimen/entry_detail_text"
+            tools:text="1,4 GB  ·  12/03/2025" />
+
+        <!-- Parte già vista del file (posizione salvata sulla TV); nascosta se non c'è. -->
+        <ProgressBar
+            android:id="@+id/entry_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/entry_progress_height"
+            android:layout_marginTop="5dp"
+            android:indeterminate="false"
+            android:max="1000"
+            android:progressDrawable="@drawable/bg_entry_progress"
+            android:visibility="gone"
+            tools:progress="420"
+            tools:visibility="visible" />
+    </LinearLayout>
+</LinearLayout>

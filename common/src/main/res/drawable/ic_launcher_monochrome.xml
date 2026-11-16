@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Versione monocromatica per le icone a tema (Android 13+). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Cornice del televisore -->
+    <path
+        android:pathData="M31,30h46a5,5 0 0 1 5,5v32a5,5 0 0 1 -5,5h-46a5,5 0 0 1 -5,-5v-32a5,5 0 0 1 5,-5z"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF" />
+    <!-- Piedistallo -->
+    <path
+        android:pathData="M54,72v6M44,79h20"
+        android:strokeLineCap="round"
+        android:strokeWidth="4"
+        android:strokeColor="#FFFFFF" />
+    <!-- Cartella con il play ritagliato (evenOdd) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M37,41a2,2 0 0 1 2,-2h9l3,3h18a2,2 0 0 1 2,2v18a2,2 0 0 1 -2,2h-30a2,2 0 0 1 -2,-2zM49,46.5v12l10,-6z" />
+</vector>

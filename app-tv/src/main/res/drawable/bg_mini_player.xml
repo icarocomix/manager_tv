@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cornice della miniatura: ben visibile a distanza quando ha il focus del telecomando. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <stroke android:width="4dp" android:color="@color/accent" />
+        </shape>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

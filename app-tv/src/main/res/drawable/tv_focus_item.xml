@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Evidenza del focus del telecomando per pulsanti e controlli: cornice d'accento ben visibile
+     a distanza al posto del ripple standard, quasi invisibile al focus. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="10dp" />
+            <solid android:color="@color/focus_fill" />
+            <stroke android:width="3dp" android:color="@color/accent" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="10dp" />
+            <solid android:color="@color/focus_fill" />
+        </shape>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

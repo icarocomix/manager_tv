@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Righe più grandi sulla TV: leggibili a 3 metri di distanza. -->
+<resources>
+    <dimen name="entry_min_height">64dp</dimen>
+    <dimen name="entry_icon">40dp</dimen>
+    <dimen name="entry_name_text">19sp</dimen>
+    <dimen name="entry_detail_text">14sp</dimen>
+    <dimen name="entry_progress_height">4dp</dimen>
+</resources>
