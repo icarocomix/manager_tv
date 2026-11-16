@@ -166,6 +166,14 @@ class TvMainActivity : AppCompatActivity() {
                 controller.submit(ClientMessage.Layout(TvView.MINI))
                 return@addCallback
             }
+            // Con il video già in miniatura il secondo "Indietro" esce dall'app (il player va in
+            // pausa in onStop): non lo uso per risalire le cartelle, altrimenti dentro una
+            // sottocartella servirebbero tante pressioni quanti sono i livelli. Per risalire resta
+            // il tasto SINISTRA.
+            if (playback.state.value.active && playback.state.value.view == TvView.MINI) {
+                finish()
+                return@addCallback
+            }
             val state = controller.state.value
             val listing = controller.listing.value
             if (state.query.isNotEmpty() || listing.crumbs.isNotEmpty() || listing.searchResults) {
