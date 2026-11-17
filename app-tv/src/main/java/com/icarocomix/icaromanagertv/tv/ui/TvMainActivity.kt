@@ -1,5 +1,6 @@
 package com.icarocomix.icaromanagertv.tv.ui
 
+import android.app.Instrumentation
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -31,6 +32,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -55,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 import com.icarocomix.icaromanagertv.common.R as CommonR
 
 /**
@@ -111,6 +114,12 @@ class TvMainActivity : AppCompatActivity() {
     private var keepingScreenOn = false
     private var exportingLogs = false
 
+    /** Thread seriale per l'iniezione dei tasti del pad del telefono (vedi [injectKey]). */
+    private val keyInjector = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "tv-remote-keys").apply { isDaemon = true }
+    }
+    private val instrumentation = Instrumentation()
+
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         refreshPanelButtons()
         if (StorageAccess.hasRuntime(this)) {
@@ -155,7 +164,7 @@ class TvMainActivity : AppCompatActivity() {
                 launch { controller.progress.collect { adapter.submitProgress(it) } }
                 launch { app.serverInfo.collect(::renderStatus) }
                 launch { controller.toasts.collect(::toast) }
-                launch { playback.player.collect { playerView.player = it } }
+                launch { playback.player.collect(::attachPlayer) }
                 launch { playback.state.collect(::renderPlayback) }
             }
         }
@@ -192,11 +201,15 @@ class TvMainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         playback.onUiStarted()
+        controller.remoteKeyTarget = remoteKeyTarget
     }
 
     override fun onStop() {
+        // Tolgo il destinatario solo se è ancora il mio: un'altra istanza dell'activity può
+        // averlo già sostituito con il proprio (onStart della nuova prima di onStop della vecchia).
+        if (controller.remoteKeyTarget === remoteKeyTarget) controller.remoteKeyTarget = null
         // Senza superficie il video non si vede: il player va in pausa e salva la posizione.
-        playerView.player = null
+        attachPlayer(null)
         playback.onUiStopped()
         super.onStop()
     }
@@ -217,6 +230,79 @@ class TvMainActivity : AppCompatActivity() {
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    override fun onDestroy() {
+        keyInjector.shutdownNow()
+        super.onDestroy()
+    }
+
+    // ------------------------------------------------------------------ pad del telefono
+
+    /** Chiamato dai thread del server: riporto il tasto sul main thread, dove vive la UI. */
+    private val remoteKeyTarget: (RemoteKey) -> Unit = { key -> runOnUiThread { onRemoteKey(key) } }
+
+    /**
+     * Tasto del pad del telefono con l'interfaccia della TV in primo piano. Nell'elenco conservo
+     * la semantica di sempre del pad (SU/GIÙ spostano la selezione, SINISTRA risale di cartella,
+     * DESTRA/OK aprono, INDIETRO annulla la ricerca o risale): funziona anche se il focus non è
+     * sull'elenco ed è la stessa del servizio senza interfaccia. Altrove (player a schermo
+     * intero, domanda di ripresa, pannello laterale, ricerca, finestre di dialogo) il tasto
+     * diventa un vero evento D-pad, identico a quello del telecomando della TV.
+     */
+    private fun onRemoteKey(key: RemoteKey) {
+        if (isListNavigation(key)) {
+            controller.submit(ClientMessage.Key(key))
+        } else {
+            injectKey(REMOTE_KEY_CODES.getValue(key))
+        }
+    }
+
+    private fun isListNavigation(key: RemoteKey): Boolean {
+        val pb = playback.state.value
+        if (pb.resumePending || (pb.active && pb.view == TvView.FULLSCREEN)) return false
+        // Una finestra di dialogo (o un'altra finestra) ha il focus: i tasti vanno a lei.
+        if (!hasWindowFocus()) return false
+        val focus = currentFocus
+        if (focus != null && !list.hasFocus()) return false
+        // Alla radice senza ricerca SINISTRA non ha cartelle da risalire: la lascio passare come
+        // D-pad, così dal telefono si raggiunge il pannello laterale come con il telecomando.
+        if (key == RemoteKey.LEFT) {
+            val listing = controller.listing.value
+            val atRoot = listing.crumbs.isEmpty() && !listing.searchResults && controller.state.value.query.isEmpty()
+            if (atRoot) return false
+        }
+        return true
+    }
+
+    /**
+     * Inietto il tasto come evento di input di sistema: raggiunge la finestra che ha il focus
+     * (activity o dialog) seguendo lo stesso percorso del telecomando fisico, compresa la
+     * gestione del focus delle viste, i controlli Media3 e il callback di "Indietro". Un'app può
+     * iniettare eventi solo nelle proprie finestre, ed è esattamente il caso: il tasto arriva
+     * solo con l'activity in primo piano. L'iniezione sincrona non è ammessa sul main thread,
+     * quindi uso un thread dedicato e seriale (l'ordine dei tasti va preservato).
+     */
+    private fun injectKey(keyCode: Int) {
+        if (keyInjector.isShutdown) return
+        keyInjector.execute {
+            try {
+                instrumentation.sendKeyDownUpSync(keyCode)
+            } catch (e: Exception) {
+                // Finestra di un'altra app in primo piano (es. permessi di sistema) o iniezione
+                // negata dal produttore: se la mia finestra ha comunque il focus consegno il
+                // tasto direttamente all'activity, altrimenti lo scarto.
+                Log.w(TAG, "Iniezione del tasto $keyCode non riuscita: ${e.message}")
+                runOnUiThread { dispatchDirectly(keyCode) }
+            }
+        }
+    }
+
+    private fun dispatchDirectly(keyCode: Int) {
+        if (!hasWindowFocus()) return
+        val now = SystemClock.uptimeMillis()
+        dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
+        dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0))
     }
 
     override fun onResume() {
@@ -329,6 +415,45 @@ class TvMainActivity : AppCompatActivity() {
     }
 
     // ------------------------------------------------------------------ player
+
+    /**
+     * Collega [player] alla vista e vi registra [controllerTimeoutFixer], togliendolo dal player
+     * precedente: il listener deve seguire sempre e solo il player mostrato.
+     */
+    private fun attachPlayer(player: Player?) {
+        val previous = playerView.player
+        if (previous === player) return
+        previous?.removeListener(controllerTimeoutFixer)
+        playerView.player = player
+        player?.addListener(controllerTimeoutFixer)
+    }
+
+    /**
+     * Media3 decide se i controlli restano visibili "per sempre" nel momento in cui li mostra:
+     * se in quell'istante il player non sta ancora riproducendo (preparazione, buffering iniziale,
+     * vista appena collegata) il timeout diventa 0. Lo ricalcola solo a fronte di alcuni eventi e
+     * soltanto se i controlli sono già del tutto visibili (non durante l'animazione d'ingresso):
+     * così, aprendo un video a schermo intero, i controlli restavano sopra l'immagine finché non
+     * si premeva un tasto. All'avvio effettivo della riproduzione li rimostro io: showController()
+     * rivaluta la condizione (ora falsa), reimposta il timeout normale e riavvia il conto alla
+     * rovescia per nasconderli. Se l'avvio cade durante l'animazione d'ingresso dei controlli
+     * ripeto il controllo poco dopo, a animazione conclusa.
+     */
+    private val controllerTimeoutFixer = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            playerView.removeCallbacks(refreshControllerTimeout)
+            if (!isPlaying) return
+            refreshControllerTimeout.run()
+            playerView.postDelayed(refreshControllerTimeout, CONTROLLER_RECHECK_MS)
+        }
+    }
+
+    private val refreshControllerTimeout = Runnable {
+        val player = playerView.player
+        if (player != null && player.isPlaying && playerView.useController && playerView.isControllerFullyVisible) {
+            playerView.showController()
+        }
+    }
 
     /**
      * Applica lo stato del player: contenitore nascosto, a tutto schermo o in miniatura, e la
@@ -699,7 +824,20 @@ class TvMainActivity : AppCompatActivity() {
         const val KEY_FULL_ACCESS_ASKED = "full_access_asked"
         const val ECHO_WINDOW_MS = 1_500L
         const val CONTROLLER_TIMEOUT_MS = 4_000
+
+        /** Oltre la durata dell'animazione d'ingresso dei controlli Media3 (~250 ms). */
+        const val CONTROLLER_RECHECK_MS = 600L
         const val MINI_WIDTH_DP = 400
+
+        /** Tasti del pad del telefono → tasti equivalenti del telecomando della TV. */
+        val REMOTE_KEY_CODES = mapOf(
+            RemoteKey.UP to KeyEvent.KEYCODE_DPAD_UP,
+            RemoteKey.DOWN to KeyEvent.KEYCODE_DPAD_DOWN,
+            RemoteKey.LEFT to KeyEvent.KEYCODE_DPAD_LEFT,
+            RemoteKey.RIGHT to KeyEvent.KEYCODE_DPAD_RIGHT,
+            RemoteKey.OK to KeyEvent.KEYCODE_DPAD_CENTER,
+            RemoteKey.BACK to KeyEvent.KEYCODE_BACK,
+        )
 
         /** Tasti multimediali del telecomando → comandi del player. */
         val MEDIA_KEYS = mapOf(

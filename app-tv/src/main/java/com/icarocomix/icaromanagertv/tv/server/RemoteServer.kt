@@ -226,7 +226,7 @@ class RemoteServer private constructor(
                 } else {
                     Log.i(TAG, "Telefono identificato: ${decoded.name} ($remote)")
                 }
-                else -> controller.submit(decoded)
+                else -> controller.submitFromRemote(decoded)
             }
         }
 

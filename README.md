@@ -17,7 +17,8 @@ Architettura, decisioni e limiti: [docs/icaromanagertv-architettura.md](docs/ica
 player integrato, miniatura, ripresa e playlist: [docs/player-integrato-playlist-resume.md](docs/player-integrato-playlist-resume.md);
 barra di avanzamento nelle righe: [docs/avanzamento-righe-elenco.md](docs/avanzamento-righe-elenco.md);
 schermo sempre acceso durante la riproduzione ed esportazione dei log: [docs/schermo-acceso-ed-esportazione-log.md](docs/schermo-acceso-ed-esportazione-log.md);
-volume della TV dal telefono: [docs/volume-tv-dal-telefono.md](docs/volume-tv-dal-telefono.md).
+volume della TV dal telefono: [docs/volume-tv-dal-telefono.md](docs/volume-tv-dal-telefono.md);
+controlli del player e pad del telefono come telecomando: [docs/pad-telefono-come-telecomando.md](docs/pad-telefono-come-telecomando.md).
 
 ## Uso del player
 
@@ -32,6 +33,9 @@ volume della TV dal telefono: [docs/volume-tv-dal-telefono.md](docs/volume-tv-da
 | Telefono, Player | «Miniatura sulla TV» / «Schermo intero sulla TV» | Cambia la disposizione sulla TV |
 | Telefono, Player | Muto, −, cursore, + (riga «Volume della TV») | Volume di sistema della TV (indicatore visibile sulla TV) |
 | Telefono, Player | Tasti volume del telefono | Alzano/abbassano il volume della TV (scollegato: volume del telefono) |
+| Telefono, Player | «Telecomando» in alto a destra | Mostra il pad: sulla TV a schermo intero muove il focus tra i controlli del player, OK li attiva, Indietro riduce a miniatura |
+| Telefono, file manager | Pad nell'elenco | Su/Giù selezione, Sinistra risale (alla radice: va al pannello laterale), Destra/OK apre |
+| Telefono, pad | Fuori dall'elenco (pannello, ricerca, dialog, ripresa) | Stesso effetto dei tasti direzionali del telecomando della TV |
 
 Riaprendo un file già iniziato (oltre 15 s e prima degli ultimi 30 s / 95%) TV e telefono chiedono
 se riprendere: risponde il primo, senza risposta la TV riprende da sola dopo 15 s. La playlist è

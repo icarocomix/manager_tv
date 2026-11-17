@@ -294,16 +294,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.cmd_pad).setOnClickListener {
             pad.visibility = if (pad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
-        bindPadKey(R.id.pad_up, RemoteKey.UP)
-        bindPadKey(R.id.pad_down, RemoteKey.DOWN)
-        bindPadKey(R.id.pad_left, RemoteKey.LEFT)
-        bindPadKey(R.id.pad_right, RemoteKey.RIGHT)
-        bindPadKey(R.id.pad_ok, RemoteKey.OK)
-        bindPadKey(R.id.pad_back, RemoteKey.BACK)
-        findViewById<ImageButton>(R.id.pad_home).setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            send(ClientMessage.Root)
-        }
+        bindPad(pad)
     }
 
     private fun bindPlayerViews() {
@@ -335,6 +326,14 @@ class MainActivity : AppCompatActivity() {
         nowBar.setOnClickListener { showPlayer() }
         findViewById<ImageButton>(R.id.now_bar_open).setOnClickListener { showPlayer() }
         findViewById<Button>(R.id.player_back).setOnClickListener { showBrowser() }
+
+        // Pad anche sulla schermata del player: sulla TV a schermo intero i tasti muovono il
+        // focus tra i controlli del player, come il telecomando della TV.
+        val playerPad = findViewById<View>(R.id.player_pad)
+        bindPad(playerPad)
+        findViewById<Button>(R.id.player_pad_toggle).setOnClickListener {
+            playerPad.visibility = if (playerPad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
 
         nowBarPlayPause.setOnClickListener { playerCommand(it, PlayerAction.PLAY_PAUSE) }
         playerPlayPause.setOnClickListener { playerCommand(it, PlayerAction.PLAY_PAUSE) }
@@ -563,8 +562,25 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun bindPadKey(id: Int, key: RemoteKey) {
-        findViewById<ImageButton>(id).setOnClickListener {
+    /**
+     * Collega i tasti di un pad (layout view_pad). Il pad compare in più schermate con gli stessi
+     * id, quindi cerco i tasti dentro il contenitore e non nell'intera activity.
+     */
+    private fun bindPad(container: View) {
+        bindPadKey(container, R.id.pad_up, RemoteKey.UP)
+        bindPadKey(container, R.id.pad_down, RemoteKey.DOWN)
+        bindPadKey(container, R.id.pad_left, RemoteKey.LEFT)
+        bindPadKey(container, R.id.pad_right, RemoteKey.RIGHT)
+        bindPadKey(container, R.id.pad_ok, RemoteKey.OK)
+        bindPadKey(container, R.id.pad_back, RemoteKey.BACK)
+        container.findViewById<ImageButton>(R.id.pad_home).setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            send(ClientMessage.Root)
+        }
+    }
+
+    private fun bindPadKey(container: View, id: Int, key: RemoteKey) {
+        container.findViewById<ImageButton>(id).setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             send(ClientMessage.Key(key))
         }

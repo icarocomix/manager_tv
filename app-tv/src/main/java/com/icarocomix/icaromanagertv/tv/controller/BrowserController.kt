@@ -131,6 +131,30 @@ class BrowserController(
         commands.trySend(Command.Client(message))
     }
 
+    /**
+     * Interfaccia della TV in primo piano che vuole ricevere i tasti del pad del telefono come
+     * se arrivassero dal telecomando fisico. Impostato dall'activity in onStart e tolto in onStop.
+     * Volatile: scritto dal main thread, letto dai thread del server.
+     */
+    @Volatile
+    var remoteKeyTarget: ((RemoteKey) -> Unit)? = null
+
+    /**
+     * Ingresso dei comandi provenienti dal telefono. Differisce da [submit] solo per i tasti del
+     * pad: con l'interfaccia della TV visibile li consegno a lei, che decide se trattarli come
+     * navigazione dell'elenco (rimandandoli a [submit]) o come veri tasti D-pad (player a schermo
+     * intero, pannello laterale, finestre di dialogo). Senza interfaccia visibile, cioè con il
+     * solo servizio attivo, restano comandi di navigazione dell'elenco come prima.
+     */
+    fun submitFromRemote(message: ClientMessage) {
+        val target = remoteKeyTarget
+        if (message is ClientMessage.Key && target != null) {
+            target(message.key)
+        } else {
+            submit(message)
+        }
+    }
+
     /** Messaggio per TV e telefono da altri componenti (es. il player integrato). */
     fun announce(text: String) = toast(text)
 

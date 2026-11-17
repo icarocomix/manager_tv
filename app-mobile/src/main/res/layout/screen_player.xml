@@ -8,15 +8,37 @@
     android:background="@color/bg"
     android:orientation="vertical">
 
-    <Button
-        android:id="@+id/player_back"
-        style="@style/Widget.IcaroManager.TextButton"
-        android:layout_width="wrap_content"
+    <!-- Intestazione: ritorno al file manager e, a destra, il pad direzionale per comandare i
+         controlli del player e i menu della TV come con il suo telecomando. -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginHorizontal="8dp"
         android:layout_marginTop="4dp"
-        android:drawableStart="@drawable/ic_back"
-        android:text="@string/player_back_to_browser" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/player_back"
+            style="@style/Widget.IcaroManager.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_back"
+            android:text="@string/player_back_to_browser" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/player_pad_toggle"
+            style="@style/Widget.IcaroManager.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_tv"
+            android:text="@string/cmd_pad" />
+    </LinearLayout>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -287,4 +309,13 @@
                 android:text="@string/tv_layout_mini" />
         </LinearLayout>
     </ScrollView>
+
+    <!-- Pad direzionale a scomparsa, fuori dallo scorrimento: resta sempre a portata di pollice. -->
+    <include
+        android:id="@+id/player_pad"
+        layout="@layout/view_pad"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        tools:visibility="visible" />
 </LinearLayout>

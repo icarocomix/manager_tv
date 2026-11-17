@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pad direzionale del telefono: comanda la TV come il suo telecomando. Incluso nel file manager
+     e nella schermata del player; i tasti sono collegati per contenitore (gli id si ripetono). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/surface"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingVertical="8dp">
+
+    <ImageButton
+        android:id="@+id/pad_back"
+        style="@style/Widget.IcaroManager.PadButton"
+        android:contentDescription="@string/pad_back"
+        android:src="@drawable/ic_back" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/pad_up"
+            style="@style/Widget.IcaroManager.PadButton"
+            android:contentDescription="@string/pad_up"
+            android:src="@drawable/ic_pad_up" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/pad_left"
+                style="@style/Widget.IcaroManager.PadButton"
+                android:contentDescription="@string/pad_left"
+                android:src="@drawable/ic_pad_left" />
+
+            <ImageButton
+                android:id="@+id/pad_ok"
+                style="@style/Widget.IcaroManager.PadButton"
+                android:background="@drawable/bg_pad_ok"
+                android:contentDescription="@string/pad_ok"
+                android:src="@drawable/ic_play"
+                android:tint="@color/bg" />
+
+            <ImageButton
+                android:id="@+id/pad_right"
+                style="@style/Widget.IcaroManager.PadButton"
+                android:contentDescription="@string/pad_right"
+                android:src="@drawable/ic_pad_right" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/pad_down"
+            style="@style/Widget.IcaroManager.PadButton"
+            android:contentDescription="@string/pad_down"
+            android:src="@drawable/ic_pad_down" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/pad_home"
+        style="@style/Widget.IcaroManager.PadButton"
+        android:contentDescription="@string/cmd_root"
+        android:src="@drawable/ic_home" />
+</LinearLayout>

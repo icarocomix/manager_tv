@@ -113,3 +113,20 @@ schermata del player. Protocol.VERSION invariato → MINOR.
 > Esito fase 9: test `:common` 18/18, assembleDebug tv+mobile OK, `distApk` OK (v1.4.0, versionCode 5).
 > Da fare sull'hardware reale: volume su TV con altoparlanti, box HDMI con volume fisso (CEC),
 > indicatore di sistema, tasti volume del telefono.
+
+## Fase 10 — Controlli del player che si nascondono + pad del telefono come vero telecomando (v1.5.0)
+Decisioni: il timeout dei controlli Media3 si azzera se `showController()` è chiamato prima che il
+player sia in riproduzione → lo ricalcolo all'avvio effettivo (onIsPlayingChanged). I tasti del pad
+del telefono, con la UI della TV in primo piano e fuori dall'elenco (player, pannello, ricerca,
+dialog), diventano veri eventi D-pad iniettati nella finestra dell'app; nell'elenco resta la
+semantica storica (SU/GIÙ selezione, SINISTRA risale, DESTRA/OK apre). Pad del telefono
+disponibile anche dalla schermata del player.
+- [x] tv: ricalcolo del timeout dei controlli all'avvio della riproduzione
+- [x] tv: instradamento dei tasti remoti verso la UI (BrowserController, RemoteServer, TvMainActivity)
+- [x] mobile: pad accessibile anche dalla schermata del player
+- [x] version.properties 1.5.0, README, docs
+- [x] build sequenziale: assembleDebug tv, assembleDebug mobile, distApk
+
+> Esito fase 10: assembleDebug tv+mobile OK, `distApk` OK (v1.5.0, versionCode 7).
+> Da fare sull'hardware reale: scomparsa dei controlli all'avvio, pad del telefono sui controlli
+> del player, sul pannello laterale e nei dialog (iniezione dei tasti nelle finestre dell'app).
