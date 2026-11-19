@@ -1,6 +1,7 @@
 package com.icarocomix.icaromanagertv.tv.controller
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.icarocomix.icaromanagertv.common.protocol.ClientMessage
 import com.icarocomix.icaromanagertv.common.protocol.EntryKind
@@ -9,6 +10,8 @@ import com.icarocomix.icaromanagertv.common.protocol.ListingProgress
 import com.icarocomix.icaromanagertv.common.protocol.Protocol
 import com.icarocomix.icaromanagertv.common.protocol.RemoteKey
 import com.icarocomix.icaromanagertv.common.protocol.RemoteState
+import com.icarocomix.icaromanagertv.common.protocol.TvView
+import com.icarocomix.icaromanagertv.common.protocol.UiCommand
 import com.icarocomix.icaromanagertv.common.search.SearchText
 import com.icarocomix.icaromanagertv.tv.R
 import com.icarocomix.icaromanagertv.tv.playback.PlaybackController
@@ -33,6 +36,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Stato autorevole del file manager della TV. Telefono e interfaccia della TV inviano gli stessi
@@ -67,7 +71,11 @@ class BrowserController(
     private val _listing = MutableStateFlow(Listing.EMPTY)
     val listing: StateFlow<Listing> = _listing.asStateFlow()
 
-    private val _state = MutableStateFlow(RemoteState())
+    /** Preferenze del file manager che sopravvivono al riavvio (oggi: la ricerca ricorsiva). */
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    // Ricerca nelle sottocartelle attiva di default; se l'utente la spegne la scelta resta.
+    private val _state = MutableStateFlow(RemoteState(recursive = prefs.getBoolean(KEY_RECURSIVE, true)))
     val state: StateFlow<RemoteState> = _state.asStateFlow()
 
     private val _progress = MutableStateFlow(ListingProgress.EMPTY)
@@ -155,6 +163,30 @@ class BrowserController(
         }
     }
 
+    /**
+     * Interfaccia della TV visibile che riceve i comandi `ui` del telefono (apertura di
+     * impostazioni e sottotitoli del player). Impostato dall'activity in onStart e tolto in onStop,
+     * come [remoteKeyTarget].
+     */
+    @Volatile
+    var remoteUiTarget: ((UiCommand) -> Unit)? = null
+
+    /** Porta in primo piano l'interfaccia della TV quando non è visibile (impostato da TvApp). */
+    @Volatile
+    var uiLauncher: (() -> Unit)? = null
+
+    /** Comando di un pannello del player arrivato con l'interfaccia chiusa, e quando è arrivato. */
+    private val pendingUi = AtomicReference<Pair<UiCommand, Long>?>(null)
+
+    /**
+     * Comando del telefono rimasto in attesa dell'apertura dell'interfaccia, se recente: chi apre
+     * l'app a mano molto dopo un tentativo fallito non deve trovarsi un pannello aperto da solo.
+     */
+    fun takePendingUi(): UiCommand? {
+        val (command, at) = pendingUi.getAndSet(null) ?: return null
+        return command.takeIf { SystemClock.elapsedRealtime() - at <= PENDING_UI_MAX_AGE_MS }
+    }
+
     /** Messaggio per TV e telefono da altri componenti (es. il player integrato). */
     fun announce(text: String) = toast(text)
 
@@ -225,6 +257,39 @@ class BrowserController(
             // l'apertura dei file, poi il player li esegue sul proprio thread.
             is ClientMessage.Player, is ClientMessage.SeekTo, is ClientMessage.Autoplay,
             is ClientMessage.Resume, is ClientMessage.Layout, is ClientMessage.Volume -> playback.handle(message)
+            is ClientMessage.Ui -> handleUi(message.command)
+        }
+    }
+
+    /**
+     * Comando all'interfaccia della TV. Con l'interfaccia visibile lo consegno a lei (che lo
+     * esegue sul main thread); altrimenti la porto in primo piano e, se il comando riguarda un
+     * pannello del player, lo lascio in attesa: l'activity lo applica in onStart.
+     */
+    private fun handleUi(command: UiCommand) {
+        if (command == UiCommand.HOME) goHome()
+        val target = remoteUiTarget
+        if (target != null) {
+            target(command)
+            return
+        }
+        pendingUi.set(if (command.isPlayerPanel) command to SystemClock.elapsedRealtime() else null)
+        val launch = uiLauncher
+        if (launch != null) launch() else Log.w(TAG, "Nessun avvio dell'interfaccia configurato: comando $command ignorato")
+    }
+
+    /**
+     * Parte del tasto Home eseguita qui, valida con e senza interfaccia visibile: video a schermo
+     * intero ridotto a miniatura (non lo fermo: chi preme Home vuole il file manager, non
+     * interrompere il film) e ritorno all'elenco degli archivi, che azzera anche la ricerca.
+     * L'apertura dell'app, se non è in primo piano, la fa [handleUi] come per BRING_TO_FRONT.
+     */
+    private fun goHome() {
+        val pb = playback.state.value
+        if (pb.active && pb.view == TvView.FULLSCREEN) playback.handle(ClientMessage.Layout(TvView.MINI))
+        if (stack.isNotEmpty() || isShowingResults() || _state.value.query.isNotEmpty()) {
+            stack.clear()
+            navigateTo(selectName = null)
         }
     }
 
@@ -331,6 +396,7 @@ class BrowserController(
     private fun setRecursive(enabled: Boolean) {
         if (enabled == _state.value.recursive) return
         _state.update { it.copy(recursive = enabled) }
+        prefs.edit().putBoolean(KEY_RECURSIVE, enabled).apply()
         restartSearch()
     }
 
@@ -489,5 +555,11 @@ class BrowserController(
     private companion object {
         const val TAG = "BrowserController"
         const val SEARCH_DEBOUNCE_MS = 250L
+
+        /** Oltre il tempo massimo che serve alla TV per aprire l'app su comando del telefono. */
+        const val PENDING_UI_MAX_AGE_MS = 15_000L
+
+        const val PREFS = "browser"
+        const val KEY_RECURSIVE = "recursive"
     }
 }

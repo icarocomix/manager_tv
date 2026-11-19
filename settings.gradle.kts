@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "IcaroManagerTV"
+rootProject.name = "ManagerTV"
 include(":common", ":app-tv", ":app-mobile")

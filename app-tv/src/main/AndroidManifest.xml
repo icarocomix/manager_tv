@@ -15,6 +15,8 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Riavvio del server all'accensione della TV, così il telefono può aprire l'app da remoto. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Lettura dei dischi USB. Fino ad Android 12 basta READ_EXTERNAL_STORAGE; da Android 13 i
          permessi per tipo di media consentono di vedere cartelle e file multimediali; l'accesso
@@ -99,6 +101,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Apertura dal telefono tramite il servizio di controllo remoto di Android TV
+                 (Protocol.TV_APP_LINK): funziona anche con l'app mai avviata o appena
+                 riaccesa la TV, quando il server dell'app non è ancora in ascolto. Il link
+                 apre soltanto l'interfaccia, senza parametri. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="open"
+                    android:scheme="icaromanagertv" />
+            </intent-filter>
         </activity>
 
         <!-- Possiede server, annuncio in rete e stato del file manager: resta attivo mentre il
@@ -111,6 +125,21 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Server di rete locale per il telecomando dello smartphone (file manager e avvio del player)" />
         </service>
+
+        <!-- Riavvia il server all'accensione e dopo gli aggiornamenti, se l'utente non l'aveva
+             spento (vedi BootReceiver). -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- URI content:// per passare i file dei dischi USB ai player esterni (file:// è vietato
              da Android 7). Il percorso radice copre qualunque punto di montaggio /storage/XXXX. -->

@@ -45,6 +45,7 @@ import com.icarocomix.icaromanagertv.common.protocol.PlayerAction
 import com.icarocomix.icaromanagertv.common.protocol.RemoteKey
 import com.icarocomix.icaromanagertv.common.protocol.RemoteState
 import com.icarocomix.icaromanagertv.common.protocol.TvView
+import com.icarocomix.icaromanagertv.common.protocol.UiCommand
 import com.icarocomix.icaromanagertv.common.search.SearchText
 import com.icarocomix.icaromanagertv.common.ui.CreditsDialog
 import com.icarocomix.icaromanagertv.common.ui.CrumbBar
@@ -52,6 +53,7 @@ import com.icarocomix.icaromanagertv.common.ui.EntryAdapter
 import com.icarocomix.icaromanagertv.common.util.TimeFormat
 import com.icarocomix.icaromanagertv.mobile.R
 import com.icarocomix.icaromanagertv.mobile.client.Connection
+import com.icarocomix.icaromanagertv.mobile.launch.StartState
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import com.icarocomix.icaromanagertv.common.R as CommonR
@@ -110,6 +112,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var playerNext: ImageButton
     private lateinit var playerAutoplay: SwitchCompat
     private lateinit var playerTvLayout: Button
+    private lateinit var playerSubtitles: Button
+    private lateinit var playerPad: View
     private lateinit var playerVolumeSeek: SeekBar
     private lateinit var playerVolumeSpacer: View
     private lateinit var playerVolumeValue: TextView
@@ -127,6 +131,9 @@ class MainActivity : AppCompatActivity() {
     private var lastVolumeSentAt = 0L
     private var lastVolumeKeyAt = 0L
     private var resumeDialog: AlertDialog? = null
+
+    /** Dialog dell'apertura dell'app sulla TV (vedi [renderStart]). */
+    private var startDialog: AlertDialog? = null
     private var resumeDialogKey: String? = null
 
     // Echo della query: vedi syncSearchField.
@@ -165,6 +172,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.exportingLogs.collect { busy -> toolbar.menu.findItem(R.id.action_export_logs)?.isEnabled = !busy }
                 }
                 launch { viewModel.client.playback.collect(::renderPlayback) }
+                launch { viewModel.starter.state.collect(::renderStart) }
             }
         }
 
@@ -191,6 +199,9 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         resumeDialog?.dismiss()
         resumeDialog = null
+        // Lo stato resta nel ViewModel: la nuova activity ricostruisce il dialog.
+        startDialog?.dismiss()
+        startDialog = null
         super.onDestroy()
     }
 
@@ -220,6 +231,8 @@ class MainActivity : AppCompatActivity() {
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_choose_tv -> showTvChooser()
+                R.id.action_open_on_tv -> viewModel.starter.openOnTv()
+                R.id.action_pair_tv -> viewModel.starter.pairNow()
                 R.id.action_refresh -> send(ClientMessage.Refresh)
                 R.id.action_export_logs -> createLogsDocument.launch(AppLogs.suggestedFileName("tv-telefono"))
                 R.id.action_credits -> CreditsDialog.show(this, R.string.credits_description_mobile, R.string.credits_libraries_mobile)
@@ -329,7 +342,7 @@ class MainActivity : AppCompatActivity() {
 
         // Pad anche sulla schermata del player: sulla TV a schermo intero i tasti muovono il
         // focus tra i controlli del player, come il telecomando della TV.
-        val playerPad = findViewById<View>(R.id.player_pad)
+        playerPad = findViewById(R.id.player_pad)
         bindPad(playerPad)
         findViewById<Button>(R.id.player_pad_toggle).setOnClickListener {
             playerPad.visibility = if (playerPad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
@@ -347,6 +360,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.player_volume_up).setOnClickListener { playerCommand(it, PlayerAction.VOLUME_UP) }
         findViewById<ImageButton>(R.id.player_volume_down).setOnClickListener { playerCommand(it, PlayerAction.VOLUME_DOWN) }
         playerVolumeMute.setOnClickListener { playerCommand(it, PlayerAction.MUTE) }
+        playerSubtitles = findViewById(R.id.player_subtitles)
+        playerSubtitles.setOnClickListener { openTvPlayerPanel(it, UiCommand.PLAYER_SUBTITLES) }
+        findViewById<Button>(R.id.player_settings).setOnClickListener { openTvPlayerPanel(it, UiCommand.PLAYER_SETTINGS) }
         bindVolumeSeek()
 
         playerAutoplay.setOnCheckedChangeListener { _, checked ->
@@ -458,6 +474,122 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    /**
+     * Apre sulla TV il selettore dei sottotitoli o il pannello impostazioni del player. Il
+     * pannello vive sulla TV (stato unico, nessuna copia da sincronizzare): per sceglierne le voci
+     * mostro il pad, i cui tasti arrivano al pannello come quelli del telecomando.
+     */
+    private fun openTvPlayerPanel(view: View, command: UiCommand) {
+        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        if (!viewModel.send(ClientMessage.Ui(command))) {
+            toast(getString(R.string.not_connected))
+            return
+        }
+        playerPad.visibility = View.VISIBLE
+    }
+
+    // ------------------------------------------------------------------ apertura dell'app sulla TV
+
+    /**
+     * Mostra lo stato del percorso "apri l'app sulla TV" ([TvStarter]): un solo dialog alla
+     * volta, ricostruito a ogni cambio di stato (anche dopo una rotazione, dato che lo stato vive
+     * nel ViewModel). I pulsanti agiscono sul TvStarter, che produce lo stato successivo.
+     */
+    private fun renderStart(state: StartState) {
+        startDialog?.dismiss()
+        startDialog = null
+        val starter = viewModel.starter
+        when (state) {
+            StartState.Idle -> Unit
+            is StartState.Working -> startDialog = AlertDialog.Builder(this)
+                .setTitle(R.string.pair_title)
+                .setView(progressView(state.text))
+                .setCancelable(false)
+                .setNegativeButton(R.string.cancel) { _, _ -> starter.cancel() }
+                .show()
+            is StartState.OfferPairing -> showPairingOffer(state)
+            is StartState.AwaitingCode -> showCodeEntry(state)
+            is StartState.Finished -> if (state.success) {
+                toast(state.text)
+                starter.acknowledge()
+            } else {
+                startDialog = AlertDialog.Builder(this)
+                    .setTitle(R.string.pair_title)
+                    .setMessage(state.text)
+                    .setCancelable(false)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> starter.acknowledge() }
+                    .show()
+            }
+        }
+    }
+
+    private fun showPairingOffer(state: StartState.OfferPairing) {
+        val starter = viewModel.starter
+        var chosen = 0
+        val builder = AlertDialog.Builder(this)
+            .setTitle(R.string.pair_title)
+            .setCancelable(false)
+            .setPositiveButton(R.string.pair_start) { _, _ -> starter.startPairing(state.targets[chosen]) }
+            .setNegativeButton(R.string.pair_not_now) { _, _ -> starter.acknowledge() }
+        val explanation = state.reason + "\n\n" + getString(R.string.pair_how)
+        if (state.targets.size == 1) {
+            builder.setMessage(explanation + "\n\n" + getString(R.string.tv_item, state.targets[0].name, state.targets[0].host))
+        } else {
+            // Più TV in rete: il messaggio non può convivere con l'elenco, lo metto nel titolo
+            // personalizzato e lascio scegliere la TV.
+            builder.setCustomTitle(messageTitle(explanation))
+            val labels = state.targets.map { getString(R.string.tv_item, it.name, it.host) }.toTypedArray()
+            builder.setSingleChoiceItems(labels, 0) { _, which -> chosen = which }
+        }
+        startDialog = builder.show()
+    }
+
+    private fun showCodeEntry(state: StartState.AwaitingCode) {
+        val starter = viewModel.starter
+        val input = EditText(this).apply {
+            hint = getString(R.string.pair_code_hint)
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or
+                android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            filters = arrayOf(android.text.InputFilter.AllCaps(), android.text.InputFilter.LengthFilter(6))
+        }
+        val message = getString(R.string.pair_code_message, state.tvName) + (state.error?.let { "\n\n$it" } ?: "")
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+            addView(TextView(this@MainActivity).apply { text = message })
+            addView(input)
+        }
+        startDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.pair_title)
+            .setView(container)
+            .setCancelable(false)
+            .setPositiveButton(R.string.pair_confirm) { _, _ -> starter.submitCode(input.text.toString()) }
+            .setNegativeButton(R.string.cancel) { _, _ -> starter.cancel() }
+            .show()
+        input.requestFocus()
+        startDialog?.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+    }
+
+    private fun progressView(text: String): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = android.view.Gravity.CENTER_VERTICAL
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        setPadding(pad, pad / 2, pad, 0)
+        addView(ProgressBar(this@MainActivity))
+        addView(TextView(this@MainActivity).apply {
+            this.text = text
+            setPadding(pad / 2, 0, 0, 0)
+        })
+    }
+
+    private fun messageTitle(text: String): View = TextView(this).apply {
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        setPadding(pad, pad, pad, pad / 2)
+        this.text = text
+    }
+
     private fun playerCommand(view: View, action: PlayerAction) {
         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         send(ClientMessage.Player(action))
@@ -512,6 +644,7 @@ class MainActivity : AppCompatActivity() {
         playerPlayPause.setImageResource(playPauseIcon)
         setEnabledLook(playerPrevious, state.hasPrevious)
         setEnabledLook(playerNext, state.hasNext)
+        setEnabledLook(playerSubtitles, state.subtitles)
 
         val duration = state.durationMs
         nowBarProgress.progress = if (duration > 0) ((state.positionMs * 1000) / duration).toInt() else 0
@@ -573,9 +706,12 @@ class MainActivity : AppCompatActivity() {
         bindPadKey(container, R.id.pad_right, RemoteKey.RIGHT)
         bindPadKey(container, R.id.pad_ok, RemoteKey.OK)
         bindPadKey(container, R.id.pad_back, RemoteKey.BACK)
+        // Home del pad: schermata principale dell'app sulla TV (in primo piano, video in
+        // miniatura, archivi), non la sola radice dell'elenco, che con il video a schermo intero
+        // cambiava sotto il player senza effetti visibili.
         container.findViewById<ImageButton>(R.id.pad_home).setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            send(ClientMessage.Root)
+            send(ClientMessage.Ui(UiCommand.HOME))
         }
     }
 

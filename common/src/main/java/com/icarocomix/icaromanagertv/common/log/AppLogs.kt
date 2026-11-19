@@ -87,9 +87,9 @@ object AppLogs {
         }
     }
 
-    /** Nome proposto per il pacchetto, es. `icaromanagertv-tv-log-20261116-153000.zip`. */
+    /** Nome proposto per il pacchetto, es. `managertv-tv-log-20261116-153000.zip`. */
     fun suggestedFileName(source: String): String =
-        "icaromanagertv-$source-log-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())}.zip"
+        "managertv-$source-log-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ROOT).format(Date())}.zip"
 
     /** Scrive un pacchetto ZIP completo su [out] e lo chiude. */
     fun writeZip(context: Context, out: OutputStream, extraInfo: Map<String, String> = emptyMap()) {

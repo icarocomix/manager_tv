@@ -62,7 +62,8 @@ data class ListingProgress(val seq: Int, val permille: Map<Int, Int>) {
 data class RemoteState(
     val listingSeq: Int = 0,
     val query: String = "",
-    val recursive: Boolean = false,
+    /** Ricerca anche nelle sottocartelle: attiva di default (v1.7), disattivabile dall'utente. */
+    val recursive: Boolean = true,
     val searching: Boolean = false,
     val selected: Int = -1,
     val message: String? = null,
@@ -124,6 +125,12 @@ sealed class ClientMessage {
 
     /** Volume di sistema della TV a un livello assoluto, 0..`PlaybackState.volumeMax` (v1.4). */
     data class Volume(val level: Int) : ClientMessage()
+
+    /**
+     * Comando all'interfaccia della TV (v1.6): portarla in primo piano, aprire impostazioni o
+     * sottotitoli del player. Se l'app della TV non è visibile viene prima portata in primo piano.
+     */
+    data class Ui(val command: UiCommand) : ClientMessage()
 }
 
 /**
@@ -138,6 +145,7 @@ sealed class ClientMessage {
  * - [volume]/[volumeMax]/[muted] (v1.4): volume di sistema della TV. [volume] = -1 quando il
  *   livello non è regolabile in assoluto (volume fisso dei box HDMI, gestito dal televisore via
  *   CEC): restano utilizzabili solo i comandi relativi su/giù/muto.
+ * - [subtitles] (v1.6): il file corrente ha tracce di sottotitoli selezionabili sulla TV.
  */
 data class PlaybackState(
     val active: Boolean = false,
@@ -155,6 +163,7 @@ data class PlaybackState(
     val volume: Int = -1,
     val volumeMax: Int = 0,
     val muted: Boolean = false,
+    val subtitles: Boolean = false,
 ) {
     /** Livello assoluto noto e regolabile: il telefono può mostrare il cursore. */
     val volumeAdjustable: Boolean get() = volumeMax > 0 && volume in 0..volumeMax

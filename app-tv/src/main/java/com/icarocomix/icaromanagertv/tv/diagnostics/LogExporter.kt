@@ -29,7 +29,7 @@ class LogExporter(private val app: TvApp) {
     fun writeZip(out: OutputStream) = AppLogs.writeZip(app, out, appState())
 
     /**
-     * Salva in `Download/IcaroManagerTV`. Da Android 10 passo da MediaStore (nessun permesso);
+     * Salva in `Download/ManagerTV`. Da Android 10 passo da MediaStore (nessun permesso);
      * prima scrivo direttamente nella cartella pubblica (permesso WRITE_EXTERNAL_STORAGE).
      * @return percorso leggibile da mostrare all'utente
      */
@@ -138,7 +138,7 @@ class LogExporter(private val app: TvApp) {
     companion object {
         private const val TAG = "LogExporter"
         private const val SOURCE = "tv"
-        private const val FOLDER = "IcaroManagerTV"
+        private const val FOLDER = "ManagerTV"
         private const val SHARE_DIR = "log-share"
         private const val HTTP_DIR = "log-http"
         const val MIME_ZIP = "application/zip"

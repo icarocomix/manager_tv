@@ -7,6 +7,7 @@ import com.icarocomix.icaromanagertv.common.protocol.PlayerAction
 import com.icarocomix.icaromanagertv.common.protocol.ProtocolCodec
 import com.icarocomix.icaromanagertv.common.protocol.ServerMessage
 import com.icarocomix.icaromanagertv.common.protocol.TvView
+import com.icarocomix.icaromanagertv.common.protocol.UiCommand
 import com.icarocomix.icaromanagertv.common.util.TimeFormat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,6 +35,7 @@ class PlaybackProtocolTest {
             volume = 7,
             volumeMax = 15,
             muted = true,
+            subtitles = true,
         )
         assertEquals(ServerMessage.PlaybackMsg(state), ProtocolCodec.decodeServer(ProtocolCodec.encode(ServerMessage.PlaybackMsg(state))))
         assertEquals(ServerMessage.PlaybackMsg(PlaybackState.IDLE), ProtocolCodec.decodeServer(ProtocolCodec.encode(ServerMessage.PlaybackMsg(PlaybackState.IDLE))))
@@ -90,6 +92,22 @@ class PlaybackProtocolTest {
         assertFalse(PlaybackState(volume = 16, volumeMax = 15).volumeAdjustable)
         assertTrue(PlayerAction.MUTE.isVolume)
         assertFalse(PlayerAction.NEXT.isVolume)
+        // Server precedente alla v1.6: senza il campo dei sottotitoli il telefono li considera assenti.
+        assertFalse(decoded.subtitles)
+    }
+
+    @Test
+    fun uiCommandsRoundTrip() {
+        UiCommand.entries.forEach { command ->
+            val message = ClientMessage.Ui(command)
+            assertEquals(message, ProtocolCodec.decodeClient(ProtocolCodec.encode(message)))
+        }
+        // Comando sconosciuto (client più recente) o assente: scartato, mai un'eccezione.
+        assertNull(ProtocolCodec.decodeClient("{\"t\":\"ui\",\"cmd\":\"reboot\"}"))
+        assertNull(ProtocolCodec.decodeClient("{\"t\":\"ui\"}"))
+        assertTrue(UiCommand.PLAYER_SUBTITLES.isPlayerPanel)
+        assertFalse(UiCommand.BRING_TO_FRONT.isPlayerPanel)
+        assertFalse(UiCommand.HOME.isPlayerPanel)
     }
 
     @Test

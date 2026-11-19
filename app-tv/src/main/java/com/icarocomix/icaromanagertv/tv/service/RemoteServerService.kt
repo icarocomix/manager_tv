@@ -56,9 +56,12 @@ class RemoteServerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Niente riavvio automatico: da Android 12 un servizio in primo piano ricreato dal sistema
-        // in background non può tornare in primo piano. Si riavvia all'apertura dell'app.
-        return START_NOT_STICKY
+        // Riavvio automatico se il sistema chiude il processo (memoria): il telefono deve trovare
+        // la TV senza che nessuno riapra l'app. Da Android 12 il servizio ricreato in background
+        // può non ottenere il primo piano (goForeground lo tollera): resta comunque in ascolto
+        // finché il processo vive, ed è meglio di un server spento fino alla prossima apertura.
+        // Se l'utente l'ha spento (stop()) il sistema non lo ricrea.
+        return START_STICKY
     }
 
     override fun onDestroy() {
@@ -195,12 +198,34 @@ class RemoteServerService : Service() {
         private const val CHANNEL_ID = "server"
         private const val NOTIFICATION_ID = 1
 
+        private const val PREFS = "server"
+        private const val KEY_ENABLED = "enabled"
+
+        /** Avvio voluto dall'utente (apertura dell'app): il server ripartirà anche al boot. */
         fun start(context: Context) {
+            setEnabled(context, true)
             ContextCompat.startForegroundService(context, Intent(context, RemoteServerService::class.java))
         }
 
+        /** Avvio all'accensione della TV (vedi [BootReceiver]): non tocca la preferenza. */
+        fun startFromBoot(context: Context) {
+            ContextCompat.startForegroundService(context, Intent(context, RemoteServerService::class.java))
+        }
+
+        /** Spegnimento voluto dall'utente: niente riavvio al boot finché non riapre l'app. */
         fun stop(context: Context) {
+            setEnabled(context, false)
             context.stopService(Intent(context, RemoteServerService::class.java))
+        }
+
+        /** true se l'ultimo comando dell'utente è stato di tenere acceso il server. */
+        fun isEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, false)
+
+        private fun setEnabled(context: Context, enabled: Boolean) {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            // Scrivo solo se cambia: start() è chiamato a ogni apertura dell'activity.
+            if (prefs.getBoolean(KEY_ENABLED, false) != enabled) prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
         }
     }
 }

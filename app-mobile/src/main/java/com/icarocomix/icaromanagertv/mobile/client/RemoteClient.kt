@@ -141,6 +141,23 @@ class RemoteClient(context: Context, private val scope: CoroutineScope) {
         wake.trySend(Unit)
     }
 
+    /**
+     * Ultima TV a cui il telefono si è collegato con successo (salvata in modo persistente),
+     * anche se in questo momento non è raggiungibile: punto di partenza per aprire l'app sulla
+     * TV quando il suo server non è in ascolto.
+     */
+    fun lastKnownTv(): TvEndpoint? {
+        val host = prefs.getString(KEY_LAST_HOST, null) ?: return null
+        val port = prefs.getInt(KEY_LAST_PORT, 0)
+        return TvEndpoint(prefs.getString(KEY_LAST_ID, null) ?: "cache", prefs.getString(KEY_LAST_NAME, null) ?: host, host, port)
+    }
+
+    /** Riprova subito ricerca e collegamento (es. appena fatta aprire l'app sulla TV). */
+    fun reconnectNow() {
+        discovery.probeNow()
+        wake.trySend(Unit)
+    }
+
     /** Invia un comando alla TV; false se non collegato. */
     fun send(message: ClientMessage): Boolean {
         val ws = socket ?: return false

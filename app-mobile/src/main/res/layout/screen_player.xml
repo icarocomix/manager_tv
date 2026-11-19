@@ -204,6 +204,27 @@
                     android:text="@string/player_end" />
             </LinearLayout>
 
+            <!-- Pannelli del player della TV: si aprono sulla TV e si navigano con il pad (che
+                 compare da solo), come con il telecomando. Sottotitoli attivi solo se il file ne ha. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/player_subtitles"
+                    style="@style/Widget.IcaroManager.BarButton"
+                    android:drawableTop="@drawable/ic_subtitles"
+                    android:text="@string/player_subtitles" />
+
+                <Button
+                    android:id="@+id/player_settings"
+                    style="@style/Widget.IcaroManager.BarButton"
+                    android:drawableTop="@drawable/ic_settings"
+                    android:text="@string/player_settings" />
+            </LinearLayout>
+
             <!-- Volume di sistema della TV: muto, passo giù, cursore assoluto (nascosto se la TV ha
                  il volume fisso e lo inoltra via HDMI-CEC), passo su. -->
             <View

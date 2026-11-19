@@ -4,6 +4,7 @@ import com.icarocomix.icaromanagertv.common.protocol.ClientMessage
 import com.icarocomix.icaromanagertv.common.protocol.Entry
 import com.icarocomix.icaromanagertv.common.protocol.EntryKind
 import com.icarocomix.icaromanagertv.common.protocol.Listing
+import com.icarocomix.icaromanagertv.common.protocol.Protocol
 import com.icarocomix.icaromanagertv.common.protocol.ProtocolCodec
 import com.icarocomix.icaromanagertv.common.protocol.RemoteKey
 import com.icarocomix.icaromanagertv.common.protocol.RemoteState
@@ -37,6 +38,10 @@ class ProtocolCodecTest {
         assertEquals(ServerMessage.StateMsg(state), ProtocolCodec.decodeServer(ProtocolCodec.encode(ServerMessage.StateMsg(state))))
         val withText = state.copy(message = "Permesso negato", nowPlaying = "a.mkv")
         assertEquals(ServerMessage.StateMsg(withText), ProtocolCodec.decodeServer(ProtocolCodec.encode(ServerMessage.StateMsg(withText))))
+        // Ricerca nelle sottocartelle: attiva di default, ma lo spegnimento dell'utente viaggia.
+        val flat = state.copy(recursive = false)
+        assertEquals(ServerMessage.StateMsg(flat), ProtocolCodec.decodeServer(ProtocolCodec.encode(ServerMessage.StateMsg(flat))))
+        assertEquals(true, RemoteState().recursive)
     }
 
     @Test
@@ -70,5 +75,12 @@ class ProtocolCodecTest {
         val long = "x".repeat(1_000)
         val decoded = ProtocolCodec.decodeClient(ProtocolCodec.encode(ClientMessage.Query(long))) as ClientMessage.Query
         assertEquals(ProtocolCodec.MAX_QUERY_LENGTH, decoded.text.length)
+    }
+
+    @Test
+    fun serviceNamesOfCurrentAndLegacyTvs() {
+        assertEquals("Salotto", Protocol.tvNameFromService("Manager TV · Salotto"))
+        assertEquals("Camera", Protocol.tvNameFromService("IcaroManagerTV · Camera"))
+        assertNull(Protocol.tvNameFromService("Chromecast"))
     }
 }

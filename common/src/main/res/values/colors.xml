@@ -14,6 +14,8 @@
     <!-- Voce selezionata (evidenza sincronizzata tra TV e telefono): accento al 22%. -->
     <color name="selected_bg">#38F2B84B</color>
     <color name="focus_fill">#26FFFFFF</color>
+    <!-- Fondo dell'icona adattiva: la piastra bianca dell'icona sorgente (art/icona.png). -->
+    <color name="ic_launcher_plate">#FFFFFF</color>
     <color name="icon_bg_start">#1F4C7A</color>
     <color name="icon_bg_end">#0C1A2B</color>
     <!-- Targa chiara del logo aziendale: il blu scuro del logo non avrebbe contrasto sul fondo. -->

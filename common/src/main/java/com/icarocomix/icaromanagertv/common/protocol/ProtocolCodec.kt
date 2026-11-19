@@ -109,7 +109,7 @@ object ProtocolCodec {
     private fun decodeState(o: JSONObject): RemoteState = RemoteState(
         listingSeq = o.optInt("seq"),
         query = o.optString("query"),
-        recursive = o.optBoolean("recursive"),
+        recursive = o.optBoolean("recursive", true),
         searching = o.optBoolean("searching"),
         selected = o.optInt("selected", -1),
         message = if (o.isNull("message")) null else o.optString("message"),
@@ -133,6 +133,7 @@ object ProtocolCodec {
         .put("vol", p.volume)
         .put("volMax", p.volumeMax)
         .put("mute", p.muted)
+        .put("subs", p.subtitles)
 
     private fun decodePlayback(o: JSONObject): PlaybackState = PlaybackState(
         active = o.optBoolean("active"),
@@ -151,6 +152,8 @@ object ProtocolCodec {
         volume = o.optInt("vol", -1),
         volumeMax = o.optInt("volMax", 0).coerceAtLeast(0),
         muted = o.optBoolean("mute", false),
+        // Assente nei server precedenti alla v1.6: nessun sottotitolo noto.
+        subtitles = o.optBoolean("subs", false),
     )
 
     private fun encodeProgress(p: ListingProgress): JSONObject {
@@ -194,6 +197,7 @@ object ProtocolCodec {
         is ClientMessage.Resume -> JSONObject().put("t", "resume").put("saved", message.fromSaved)
         is ClientMessage.Layout -> JSONObject().put("t", "view").put("view", message.view.wire)
         is ClientMessage.Volume -> JSONObject().put("t", "volume").put("level", message.level)
+        is ClientMessage.Ui -> JSONObject().put("t", "ui").put("cmd", message.command.wire)
     }.toString()
 
     fun decodeClient(text: String): ClientMessage? = try {
@@ -218,6 +222,7 @@ object ProtocolCodec {
             "view" -> TvView.fromWire(o.optString("view"))?.let { ClientMessage.Layout(it) }
             // Il limite superiore dipende dalla TV: lo applica il server, qui escludo i negativi.
             "volume" -> ClientMessage.Volume(o.getInt("level").coerceAtLeast(0))
+            "ui" -> UiCommand.fromWire(o.optString("cmd"))?.let { ClientMessage.Ui(it) }
             else -> null
         }
     } catch (_: JSONException) {

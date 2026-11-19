@@ -64,6 +64,6 @@
     <ImageButton
         android:id="@+id/pad_home"
         style="@style/Widget.IcaroManager.PadButton"
-        android:contentDescription="@string/cmd_root"
+        android:contentDescription="@string/pad_home"
         android:src="@drawable/ic_home" />
 </LinearLayout>

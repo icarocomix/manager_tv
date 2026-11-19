@@ -36,7 +36,7 @@ val distApk by tasks.registering {
         sources.forEach { (module, apk) ->
             check(apk.isFile) { "APK non trovato: $apk" }
             apk.copyTo(File(dir, "$module-release.apk"), overwrite = true)
-            apk.copyTo(File(dir, "IcaroManagerTV-$module-$versionName.apk"), overwrite = true)
+            apk.copyTo(File(dir, "ManagerTV-$module-$versionName.apk"), overwrite = true)
         }
         println("APK copiati in ${dir.absolutePath} (versione $versionName)")
     }

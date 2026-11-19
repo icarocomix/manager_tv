@@ -21,7 +21,7 @@
             android:layout_width="88dp"
             android:layout_height="88dp"
             android:importantForAccessibility="no"
-            android:src="@drawable/logo_app" />
+            android:src="@drawable/logo_manager_tv" />
 
         <TextView
             android:id="@+id/credits_app_name"
@@ -31,7 +31,7 @@
             android:textColor="@color/text_primary"
             android:textSize="24sp"
             android:textStyle="bold"
-            tools:text="IcaroManagerTV" />
+            tools:text="Manager TV" />
 
         <TextView
             android:id="@+id/credits_version"

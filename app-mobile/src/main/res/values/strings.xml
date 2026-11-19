@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">IcaroManagerTV Remote</string>
-    <string name="toolbar_title">IcaroManagerTV</string>
+    <string name="app_name">Manager TV Remote</string>
+    <string name="toolbar_title">Manager TV</string>
 
     <!-- Stato del collegamento -->
     <string name="conn_searching">Ricerca della TV nella rete Wi-Fi…</string>
@@ -9,11 +9,50 @@
     <string name="conn_connected">Collegato a %1$s</string>
     <string name="conn_retrying">%1$s non raggiungibile, nuovo tentativo tra %2$d s</string>
     <string name="conn_failed">%1$s</string>
-    <string name="conn_hint">Accendi la TV, apri IcaroManagerTV e collega il telefono alla stessa rete Wi-Fi.</string>
+    <string name="conn_hint">Accendi la TV, apri Manager TV e collega il telefono alla stessa rete Wi-Fi.</string>
     <string name="not_connected">Non collegato alla TV</string>
 
     <!-- Menu -->
     <string name="menu_choose_tv">Scegli TV</string>
+    <string name="menu_open_on_tv">Apri l\'app sulla TV</string>
+    <string name="open_on_tv_sent">Apertura di Manager TV sulla TV…</string>
+    <string name="menu_pair_tv">Abbina la TV (facoltativo)…</string>
+
+    <!-- Apertura dell'app sulla TV con l'app chiusa: abbinamento con il servizio di sistema della TV -->
+    <string name="pair_title">Apertura dell\'app sulla TV</string>
+    <string name="pair_needed_forgotten">La TV non riconosce più questo telefono (abbinamento cancellato o TV ripristinata): ripeti l\'abbinamento.</string>
+    <string name="pair_needed_identity">La TV si presenta con un\'identità diversa da quella dell\'abbinamento (TV ripristinata o sostituita): ripeti l\'abbinamento.</string>
+    <string name="pair_explain">Facoltativo: serve solo se la TV blocca l\'avvio automatico delle app. Abbinamento una tantum con il servizio di controllo remoto della TV (lo stesso dell\'app Google TV).</string>
+    <string name="pair_how">La TV mostrerà un codice di 6 caratteri da digitare qui. Da allora il telefono potrà aprire l\'app anche con la TV appena accesa, senza usare il telecomando.</string>
+    <string name="pair_start">Abbina</string>
+    <string name="pair_not_now">Non ora</string>
+    <string name="pair_searching">Cerco la TV in rete…</string>
+    <string name="pair_no_tv_found">Nessuna TV trovata in rete. Accendi la TV e verifica che telefono e TV siano sulla stessa rete Wi-Fi.</string>
+    <string name="pair_connecting">Collegamento a %1$s… Tra poco la TV mostrerà un codice.</string>
+    <string name="pair_code_message">Digita il codice di 6 caratteri (cifre e lettere A–F) mostrato sulla TV «%1$s».</string>
+    <string name="pair_code_hint">Codice, es. 4F2A9C</string>
+    <string name="pair_confirm">Conferma</string>
+    <string name="pair_checking">Verifico il codice…</string>
+    <string name="pair_code_format">Il codice è di 6 caratteri: cifre da 0 a 9 e lettere da A a F.</string>
+    <string name="pair_code_wrong">Codice non corretto: controlla i caratteri sulla TV e riprova.</string>
+    <string name="pair_code_rejected">La TV ha rifiutato il codice o il tempo è scaduto: digita il nuovo codice mostrato sulla TV.</string>
+    <string name="pair_code_expired">Sessione scaduta: digita il nuovo codice mostrato sulla TV.</string>
+    <string name="pair_done">Abbinamento completato: ora puoi aprire l\'app sulla TV anche quando è chiusa.</string>
+    <string name="pair_failed">Abbinamento non riuscito: %1$s</string>
+    <string name="pair_client_name">Manager TV Remote (%1$s)</string>
+    <string name="launch_never_seen">Il telefono non ha ancora mai trovato la TV: apri Manager TV sulla TV una volta (o installala con lo script installa-tv.sh), con telefono e TV sulla stessa rete Wi-Fi.</string>
+    <string name="launch_waiting_app">Attendo %1$s… Se la TV si è appena accesa può servire fino a un minuto.</string>
+    <string name="launch_app_silent">%1$s non risponde da un minuto: verifica che sia accesa e sulla stessa rete Wi-Fi del telefono. Se la TV blocca l\'avvio automatico delle app, puoi usare ⋮ › Abbina la TV (facoltativo).</string>
+    <string name="launch_searching">Cerco %1$s…</string>
+    <string name="launch_waiting_tv">La TV non risponde ancora (forse si sta avviando): nuovo tentativo %1$d…</string>
+    <string name="launch_opening">Apro Manager TV sulla TV…</string>
+    <string name="launch_done">Manager TV è aperta sulla TV.</string>
+    <string name="launch_no_answer">La TV ha accettato il comando ma Manager TV non risponde. Controlla la TV: se l\'app è aperta, verifica che telefono e TV siano sulla stessa rete.</string>
+    <string name="launch_unreachable">%1$s non risponde da un minuto: verifica che sia accesa (non solo in standby senza rete) e sulla stessa rete Wi-Fi del telefono.</string>
+    <string name="launch_refused">%1$s è in rete ma il suo servizio di controllo remoto non risponde: se la TV si è appena accesa riprova tra poco.</string>
+    <string name="launch_failed">Apertura non riuscita: %1$s</string>
+    <string name="atv_service_missing">La TV non offre il servizio di controllo remoto di Android TV (presente sui televisori Android TV e Google TV certificati): l\'app si apre dal telefono solo dopo averla avviata una volta con il telecomando.</string>
+    <string name="atv_unreachable">La TV non risponde: verifica che sia accesa e sulla stessa rete Wi-Fi del telefono.</string>
     <string name="menu_refresh">Aggiorna</string>
     <string name="menu_export_logs">Esporta log (TV + telefono)</string>
     <string name="logs_working">Raccolgo i log di TV e telefono…</string>
@@ -21,7 +60,7 @@
     <string name="logs_saved_phone_only">Salvati solo i log del telefono (TV: %1$s)</string>
     <string name="logs_failed">Log non esportati: %1$s</string>
     <string name="choose_tv_title">TV trovate in rete</string>
-    <string name="choose_tv_empty">Nessuna TV trovata finora. Verifica che IcaroManagerTV sia aperta sulla TV e che i dispositivi siano sulla stessa rete.</string>
+    <string name="choose_tv_empty">Nessuna TV trovata finora. Verifica che Manager TV sia aperta sulla TV e che i dispositivi siano sulla stessa rete.</string>
     <string name="tv_item">%1$s  (%2$s)</string>
     <string name="tv_current">%1$s  ✓</string>
 
@@ -36,6 +75,7 @@
     <string name="pad_right">Destra</string>
     <string name="pad_ok">OK</string>
     <string name="pad_back">Indietro</string>
+    <string name="pad_home">Schermata principale dell\'app sulla TV</string>
     <string name="cancel">Annulla</string>
 
     <!-- Player -->
@@ -43,7 +83,9 @@
     <string name="now_bar_open">Torna al player</string>
     <string name="tv_layout_mini">Miniatura sulla TV (mostra il file manager)</string>
     <string name="tv_layout_full">Schermo intero sulla TV</string>
+    <string name="player_subtitles">Sottotitoli</string>
+    <string name="player_settings">Impostazioni</string>
 
-    <string name="credits_description_mobile">Telecomando per IcaroManagerTV: trova da solo la TV nella rete Wi-Fi di casa, mostra in tempo reale le cartelle dei dischi USB collegati al televisore e permette di cercare con la tastiera del telefono, avviare video, musica e foto sulla TV e comandarne il player: pausa, salti, file precedente e successivo, ripresa dal punto interrotto e riproduzione automatica.</string>
+    <string name="credits_description_mobile">Telecomando per Manager TV: trova da solo la TV nella rete Wi-Fi di casa, mostra in tempo reale le cartelle dei dischi USB collegati al televisore e permette di cercare con la tastiera del telefono, avviare video, musica e foto sulla TV e comandarne il player: pausa, salti, file precedente e successivo, ripresa dal punto interrotto e riproduzione automatica.</string>
     <string name="credits_libraries_mobile">Realizzata con AndroidX e OkHttp (Apache 2.0).</string>
 </resources>

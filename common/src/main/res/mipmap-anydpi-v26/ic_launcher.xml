@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Icona IcaroManagerTV: televisore con cartella e "play" (vettoriale, nessun PNG da mantenere). -->
+<!-- Icona di Manager TV: telecomando con onde Wi-Fi su fondo bianco. Livelli generati da
+     art/icona.png con art/genera_icone.py (primo piano e monocromo per le icone a tema). -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+    <background android:drawable="@color/ic_launcher_plate" />
+    <foreground android:drawable="@drawable/ic_launcher_art" />
+    <monochrome android:drawable="@drawable/ic_launcher_art_mono" />
 </adaptive-icon>

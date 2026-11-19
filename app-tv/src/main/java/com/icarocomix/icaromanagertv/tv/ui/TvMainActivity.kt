@@ -1,6 +1,6 @@
 package com.icarocomix.icaromanagertv.tv.ui
 
-import android.app.Instrumentation
+import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -13,6 +13,7 @@ import android.view.KeyEvent
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -43,6 +44,7 @@ import com.icarocomix.icaromanagertv.common.protocol.PlayerAction
 import com.icarocomix.icaromanagertv.common.protocol.RemoteKey
 import com.icarocomix.icaromanagertv.common.protocol.RemoteState
 import com.icarocomix.icaromanagertv.common.protocol.TvView
+import com.icarocomix.icaromanagertv.common.protocol.UiCommand
 import com.icarocomix.icaromanagertv.common.search.SearchText
 import com.icarocomix.icaromanagertv.common.ui.CreditsDialog
 import com.icarocomix.icaromanagertv.common.ui.CrumbBar
@@ -57,7 +59,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.Executors
 import com.icarocomix.icaromanagertv.common.R as CommonR
 
 /**
@@ -71,6 +72,7 @@ class TvMainActivity : AppCompatActivity() {
     private val controller get() = app.controller
     private val playback get() = app.playback
 
+    private lateinit var browser: ViewGroup
     private lateinit var list: RecyclerView
     private lateinit var adapter: EntryAdapter
     private lateinit var search: EditText
@@ -112,13 +114,20 @@ class TvMainActivity : AppCompatActivity() {
 
     /** Stato attuale di FLAG_KEEP_SCREEN_ON sulla finestra (evito di riapplicarlo ogni secondo). */
     private var keepingScreenOn = false
+
+    /** Pannello del player da aprire appena il video passa a schermo intero (vedi [openPlayerPanel]). */
+    private var pendingPanel: UiCommand? = null
+
+    /** Tasto di cui ho gestito la pressione in [handleFullscreenPlayerKey]: ne assorbo anche il rilascio. */
+    private var consumedKeyCode = KeyEvent.KEYCODE_UNKNOWN
+
     private var exportingLogs = false
 
-    /** Thread seriale per l'iniezione dei tasti del pad del telefono (vedi [injectKey]). */
-    private val keyInjector = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "tv-remote-keys").apply { isDaemon = true }
-    }
-    private val instrumentation = Instrumentation()
+    /** Dialog dell'app aperto in questo momento: serve a consegnargli "Indietro" dal telefono. */
+    private var openDialog: Dialog? = null
+
+    /** Consegna i tasti del pad del telefono alla finestra con il focus (vedi [onRemoteKey]). */
+    private val keyDelivery = RemoteKeyDelivery(this) { openDialog?.takeIf { it.isShowing } }
 
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         refreshPanelButtons()
@@ -170,9 +179,17 @@ class TvMainActivity : AppCompatActivity() {
         }
 
         onBackPressedDispatcher.addCallback(this) {
-            // A schermo intero "Indietro" riduce il video a miniatura: non lo ferma mai.
+            // A schermo intero "Indietro" lavora a due livelli, come sulle piattaforme di
+            // streaming: con i controlli a schermo li nasconde soltanto (il video resta a schermo
+            // intero); solo con i controlli già nascosti riduce il video a miniatura. Non lo
+            // ferma mai. I pannelli impostazioni/sottotitoli sono finestre a parte: il loro
+            // "Indietro" li chiude senza arrivare qui.
             if (playback.state.value.active && playback.state.value.view == TvView.FULLSCREEN) {
-                controller.submit(ClientMessage.Layout(TvView.MINI))
+                if (playerView.useController && isControllerOnScreen()) {
+                    playerView.hideController()
+                } else {
+                    controller.submit(ClientMessage.Layout(TvView.MINI))
+                }
                 return@addCallback
             }
             // Con il video già in miniatura il secondo "Indietro" esce dall'app (il player va in
@@ -202,12 +219,16 @@ class TvMainActivity : AppCompatActivity() {
         super.onStart()
         playback.onUiStarted()
         controller.remoteKeyTarget = remoteKeyTarget
+        controller.remoteUiTarget = remoteUiTarget
+        // Comando del telefono arrivato con l'app chiusa (che è stata aperta proprio per lui).
+        controller.takePendingUi()?.let(::onRemoteUi)
     }
 
     override fun onStop() {
         // Tolgo il destinatario solo se è ancora il mio: un'altra istanza dell'activity può
         // averlo già sostituito con il proprio (onStart della nuova prima di onStop della vecchia).
         if (controller.remoteKeyTarget === remoteKeyTarget) controller.remoteKeyTarget = null
+        if (controller.remoteUiTarget === remoteUiTarget) controller.remoteUiTarget = null
         // Senza superficie il video non si vede: il player va in pausa e salva la posizione.
         attachPlayer(null)
         playback.onUiStopped()
@@ -229,11 +250,91 @@ class TvMainActivity : AppCompatActivity() {
             if (event.action == KeyEvent.ACTION_UP && !redundant) controller.submit(ClientMessage.Player(action))
             return true
         }
+        if (handleFullscreenPlayerKey(event, state)) return true
         return super.dispatchKeyEvent(event)
     }
 
+    /**
+     * D-pad sul video a schermo intero con i controlli nascosti, come sulle piattaforme di
+     * streaming: OK alterna riproduzione e pausa (in pausa i controlli compaiono e restano,
+     * con il focus su Play/Pausa), GIÙ mostra i controlli con il focus sulla barra temporale
+     * (da lì un altro GIÙ porta a sottotitoli e impostazioni), gli altri tasti direzionali li
+     * mostrano con il focus su Play/Pausa. Con i controlli visibili non intervengo: il tasto va
+     * al controllo che ha il focus, come prevede Media3.
+     *
+     * Intercetto qui, a livello di activity, perché con i controlli nascosti nessuna vista del
+     * player ha il focus: prima il focus ricadeva sul pulsante «Chiudi player» del pannello
+     * sotto il video e OK chiudeva il player (vedi [setBrowserFocusable]).
+     */
+    private fun handleFullscreenPlayerKey(event: KeyEvent, state: PlaybackState): Boolean {
+        val code = event.keyCode
+        if (event.action == KeyEvent.ACTION_UP) {
+            // Il rilascio di un tasto di cui ho gestito la pressione non deve arrivare alle viste:
+            // sul controllo appena focalizzato un UP isolato di OK varrebbe come clic.
+            if (code != consumedKeyCode) return false
+            consumedKeyCode = KeyEvent.KEYCODE_UNKNOWN
+            return true
+        }
+        if (event.action != KeyEvent.ACTION_DOWN) return false
+        if (!state.active || state.view != TvView.FULLSCREEN || state.resumePending) return false
+        if (!playerView.useController || isControllerOnScreen()) return false
+        when (code) {
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                // Tenendo premuto OK arrivano ripetizioni: alterno una volta sola per pressione.
+                if (event.repeatCount == 0) {
+                    val pausing = state.playing
+                    controller.submit(ClientMessage.Player(PlayerAction.PLAY_PAUSE))
+                    // Netflix & co.: la pausa mostra i controlli; la ripresa lascia libero il video.
+                    if (pausing) showControllerFocusing(MEDIA3_PLAY_PAUSE_ID)
+                }
+            }
+            KeyEvent.KEYCODE_DPAD_DOWN -> showControllerFocusing(MEDIA3_TIME_BAR_ID)
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT ->
+                showControllerFocusing(MEDIA3_PLAY_PAUSE_ID)
+            else -> return false
+        }
+        consumedKeyCode = code
+        return true
+    }
+
+    /**
+     * I controlli Media3 sono (anche solo in parte) a schermo: comprende le animazioni di entrata
+     * e uscita, durante le quali il tasto deve ancora andare al controllo con il focus.
+     */
+    private fun isControllerOnScreen(): Boolean =
+        playerView.findViewById<View>(MEDIA3_CONTROLLER_ID)?.isShown == true
+
+    /**
+     * Mostra i controlli e sposta il focus sulla vista [focusId]. Media3, mostrandoli, porta il
+     * focus su Play/Pausa in modo sincrono; la mia richiesta è posticipata al passaggio
+     * successivo del main thread, a controlli disposti, così prevale. Se la vista non è
+     * disponibile (es. barra temporale assente per una diretta) resta il focus di Media3.
+     */
+    private fun showControllerFocusing(focusId: Int) {
+        playerView.showController()
+        playerView.post {
+            val target = playerView.findViewById<View>(focusId)
+            if (target != null && target.isShown && target.isFocusable) target.requestFocus()
+        }
+    }
+
+    /**
+     * Con il video a schermo intero il file manager resta disposto sotto il player: le sue viste
+     * sono coperte ma ancora selezionabili. Quando i controlli Media3 si nascondono, la vista
+     * con il focus sparisce e Android lo riassegna alla prima vista selezionabile della
+     * finestra, cioè il pulsante «Chiudi player» del pannello: il tasto OK successivo fermava la
+     * riproduzione e chiudeva il player, e le frecce si muovevano nel file manager invisibile.
+     * A schermo intero blocco quindi il focus dell'intero file manager; lo ripristino in
+     * miniatura e a player chiuso.
+     */
+    private fun setBrowserFocusable(focusable: Boolean) {
+        browser.descendantFocusability = if (focusable) ViewGroup.FOCUS_BEFORE_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        if (!focusable && browser.hasFocus()) browser.findFocus()?.clearFocus()
+    }
+
     override fun onDestroy() {
-        keyInjector.shutdownNow()
+        keyDelivery.shutdown()
+        openDialog = null
         super.onDestroy()
     }
 
@@ -248,13 +349,79 @@ class TvMainActivity : AppCompatActivity() {
      * DESTRA/OK aprono, INDIETRO annulla la ricerca o risale): funziona anche se il focus non è
      * sull'elenco ed è la stessa del servizio senza interfaccia. Altrove (player a schermo
      * intero, domanda di ripresa, pannello laterale, ricerca, finestre di dialogo) il tasto
-     * diventa un vero evento D-pad, identico a quello del telecomando della TV.
+     * diventa un vero evento D-pad, identico a quello del telecomando della TV, consegnato alla
+     * finestra con il focus da [RemoteKeyDelivery].
      */
     private fun onRemoteKey(key: RemoteKey) {
         if (isListNavigation(key)) {
             controller.submit(ClientMessage.Key(key))
         } else {
-            injectKey(REMOTE_KEY_CODES.getValue(key))
+            keyDelivery.deliver(REMOTE_KEY_CODES.getValue(key))
+        }
+    }
+
+    // ------------------------------------------------------------------ comandi ui del telefono
+
+    /** Chiamato dal ciclo dei comandi: riporto il comando sul main thread. */
+    private val remoteUiTarget: (UiCommand) -> Unit = { command -> runOnUiThread { onRemoteUi(command) } }
+
+    private fun onRemoteUi(command: UiCommand) {
+        when (command) {
+            // L'interfaccia è già visibile: non c'è nulla da portare in primo piano.
+            UiCommand.BRING_TO_FRONT -> Unit
+            // Il controller ha già ridotto il video e riportato l'elenco alla radice: chiudo un
+            // eventuale dialog aperto e porto il focus sull'elenco (a layout applicato).
+            UiCommand.HOME -> {
+                openDialog?.takeIf { it.isShowing }?.dismiss()
+                list.post { if (!playback.state.value.resumePending) focusSelectedRow() }
+            }
+            UiCommand.PLAYER_SETTINGS, UiCommand.PLAYER_SUBTITLES -> openPlayerPanel(command)
+        }
+    }
+
+    /**
+     * Apre sulla TV il pannello impostazioni (tracce audio, velocità) o il selettore dei
+     * sottotitoli di Media3, come se l'utente premesse il pulsante corrispondente tra i controlli
+     * del player. Il pannello è una finestra popup con il focus: i tasti successivi del pad del
+     * telefono vi arrivano tramite l'iniezione (vedi [isListNavigation]), quelli del telecomando
+     * direttamente. In miniatura passo prima a schermo intero e apro il pannello a layout
+     * applicato.
+     */
+    private fun openPlayerPanel(command: UiCommand) {
+        val state = playback.state.value
+        val problem = when {
+            !state.active -> R.string.player_panel_unavailable
+            state.resumePending -> R.string.player_panel_resume_first
+            command == UiCommand.PLAYER_SUBTITLES && !state.subtitles -> R.string.player_no_subtitles
+            else -> null
+        }
+        if (problem != null) {
+            controller.announce(getString(problem))
+            return
+        }
+        if (state.view != TvView.FULLSCREEN || !appliedFullscreen()) {
+            pendingPanel = command
+            controller.submit(ClientMessage.Layout(TvView.FULLSCREEN))
+            return
+        }
+        clickPlayerButton(command)
+    }
+
+    private fun appliedFullscreen(): Boolean = appliedActive && appliedView == TvView.FULLSCREEN
+
+    private fun clickPlayerButton(command: UiCommand) {
+        val buttonId = if (command == UiCommand.PLAYER_SUBTITLES) MEDIA3_SUBTITLES_ID else MEDIA3_SETTINGS_ID
+        playerView.showController()
+        // A controlli disposti: il popup si ancora al pulsante e ne usa la posizione sullo schermo.
+        playerView.post {
+            val button = playerView.findViewById<View>(buttonId)
+            if (button == null || !button.isShown || !button.isEnabled) {
+                Log.w(TAG, "Pulsante $command non disponibile tra i controlli del player")
+                controller.announce(getString(R.string.player_panel_not_ready))
+                return@post
+            }
+            button.requestFocus()
+            button.performClick()
         }
     }
 
@@ -275,36 +442,6 @@ class TvMainActivity : AppCompatActivity() {
         return true
     }
 
-    /**
-     * Inietto il tasto come evento di input di sistema: raggiunge la finestra che ha il focus
-     * (activity o dialog) seguendo lo stesso percorso del telecomando fisico, compresa la
-     * gestione del focus delle viste, i controlli Media3 e il callback di "Indietro". Un'app può
-     * iniettare eventi solo nelle proprie finestre, ed è esattamente il caso: il tasto arriva
-     * solo con l'activity in primo piano. L'iniezione sincrona non è ammessa sul main thread,
-     * quindi uso un thread dedicato e seriale (l'ordine dei tasti va preservato).
-     */
-    private fun injectKey(keyCode: Int) {
-        if (keyInjector.isShutdown) return
-        keyInjector.execute {
-            try {
-                instrumentation.sendKeyDownUpSync(keyCode)
-            } catch (e: Exception) {
-                // Finestra di un'altra app in primo piano (es. permessi di sistema) o iniezione
-                // negata dal produttore: se la mia finestra ha comunque il focus consegno il
-                // tasto direttamente all'activity, altrimenti lo scarto.
-                Log.w(TAG, "Iniezione del tasto $keyCode non riuscita: ${e.message}")
-                runOnUiThread { dispatchDirectly(keyCode) }
-            }
-        }
-    }
-
-    private fun dispatchDirectly(keyCode: Int) {
-        if (!hasWindowFocus()) return
-        val now = SystemClock.uptimeMillis()
-        dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
-        dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0))
-    }
-
     override fun onResume() {
         super.onResume()
         refreshPanelButtons()
@@ -317,6 +454,7 @@ class TvMainActivity : AppCompatActivity() {
     }
 
     private fun bindViews() {
+        browser = findViewById(R.id.browser)
         list = findViewById(R.id.list)
         search = findViewById(R.id.search)
         recursive = findViewById(R.id.recursive)
@@ -476,7 +614,10 @@ class TvMainActivity : AppCompatActivity() {
     }
 
     private fun applyPlayerLayout(state: PlaybackState) {
+        setBrowserFocusable(!state.active || state.view != TvView.FULLSCREEN)
         if (!state.active) {
+            // Player chiuso prima di arrivare a schermo intero: il pannello chiesto non serve più.
+            pendingPanel = null
             playerContainer.visibility = View.GONE
             playerView.hideController()
             // Il player si è chiuso: riporto il focus sull'elenco, salvo che si stia digitando.
@@ -496,6 +637,11 @@ class TvMainActivity : AppCompatActivity() {
             if (!state.resumePending) {
                 playerView.requestFocus()
                 playerView.showController()
+                // Pannello chiesto dal telefono mentre il video era in miniatura.
+                pendingPanel?.let { panel ->
+                    pendingPanel = null
+                    clickPlayerButton(panel)
+                }
             }
         } else {
             // Miniatura 16:9 in basso a destra, entro il margine di sicurezza per l'overscan.
@@ -695,7 +841,7 @@ class TvMainActivity : AppCompatActivity() {
             .setMessage(R.string.perm_full_message)
             .setPositiveButton(R.string.perm_open_settings) { _, _ -> openFullAccessSettings() }
             .setNegativeButton(R.string.perm_not_now, null)
-            .show()
+            .showTracked()
     }
 
     private fun requestAccess() {
@@ -730,7 +876,7 @@ class TvMainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(R.string.perm_not_now, null)
-            .show()
+            .showTracked()
     }
 
     private fun showAdbHint(operation: String) {
@@ -738,7 +884,7 @@ class TvMainActivity : AppCompatActivity() {
             .setTitle(R.string.perm_adb_title)
             .setMessage(getString(R.string.perm_adb_message, packageName, operation))
             .setPositiveButton(R.string.ok, null)
-            .show()
+            .showTracked()
     }
 
     // ------------------------------------------------------------------ esportazione dei log
@@ -767,7 +913,7 @@ class TvMainActivity : AppCompatActivity() {
             .setTitle(R.string.logs_title)
             .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
             .setNegativeButton(R.string.perm_not_now, null)
-            .show()
+            .showTracked()
     }
 
     /** Esegue [work] (I/O e logcat) fuori dal main thread e ne mostra l'esito. */
@@ -814,6 +960,17 @@ class TvMainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Mostra il dialog e lo ricorda finché resta aperto: "Indietro" dal pad del telefono gli
+     * arriva tramite il suo dispatcher (vedi [RemoteKeyDelivery]).
+     */
+    private fun AlertDialog.Builder.showTracked(): AlertDialog {
+        val dialog = show()
+        openDialog = dialog
+        dialog.setOnDismissListener { if (openDialog === dialog) openDialog = null }
+        return dialog
+    }
+
     private fun toast(text: String) {
         Toast.makeText(this, text, Toast.LENGTH_LONG).show()
     }
@@ -828,6 +985,13 @@ class TvMainActivity : AppCompatActivity() {
         /** Oltre la durata dell'animazione d'ingresso dei controlli Media3 (~250 ms). */
         const val CONTROLLER_RECHECK_MS = 600L
         const val MINI_WIDTH_DP = 400
+
+        // Viste dei controlli Media3 (layout di media3-ui, stabili tra le versioni 1.x).
+        val MEDIA3_CONTROLLER_ID = androidx.media3.ui.R.id.exo_controller
+        val MEDIA3_PLAY_PAUSE_ID = androidx.media3.ui.R.id.exo_play_pause
+        val MEDIA3_TIME_BAR_ID = androidx.media3.ui.R.id.exo_progress
+        val MEDIA3_SETTINGS_ID = androidx.media3.ui.R.id.exo_settings
+        val MEDIA3_SUBTITLES_ID = androidx.media3.ui.R.id.exo_subtitle
 
         /** Tasti del pad del telefono → tasti equivalenti del telecomando della TV. */
         val REMOTE_KEY_CODES = mapOf(

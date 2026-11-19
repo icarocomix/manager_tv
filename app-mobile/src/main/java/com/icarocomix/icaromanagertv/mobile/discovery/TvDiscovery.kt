@@ -121,7 +121,7 @@ class TvDiscovery(context: Context) {
         val manager = nsd ?: return
         val listener = object : NsdManager.DiscoveryListener {
             override fun onServiceFound(info: NsdServiceInfo) {
-                if (!info.serviceName.startsWith(Protocol.SERVICE_NAME_PREFIX.trim())) return
+                if (Protocol.tvNameFromService(info.serviceName) == null) return
                 enqueueResolve(info)
             }
 
@@ -190,7 +190,7 @@ class TvDiscovery(context: Context) {
                                 upsert(
                                     TvEndpoint(
                                         id = id,
-                                        name = resolved.serviceName.removePrefix(Protocol.SERVICE_NAME_PREFIX),
+                                        name = Protocol.tvNameFromService(resolved.serviceName) ?: resolved.serviceName,
                                         host = address,
                                         port = resolved.port,
                                         viaNsd = true,

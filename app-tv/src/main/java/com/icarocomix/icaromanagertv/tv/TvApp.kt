@@ -10,6 +10,7 @@ import com.icarocomix.icaromanagertv.tv.diagnostics.LogExporter
 import com.icarocomix.icaromanagertv.tv.playback.PlaybackController
 import com.icarocomix.icaromanagertv.tv.playback.ProgressStore
 import com.icarocomix.icaromanagertv.tv.storage.StorageRepository
+import com.icarocomix.icaromanagertv.tv.ui.UiLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
@@ -78,6 +79,10 @@ class TvApp : Application() {
             onToast = { text -> controller.announce(text) },
         )
         controller = BrowserController(this, storage, launcher, playback, progressStore, appScope)
+        // Apertura dell'interfaccia su comando del telefono; un avvio bloccato dal sistema viene
+        // segnalato con un toast che arriva anche al telefono.
+        val uiLauncher = UiLauncher(this) { message -> controller.announce(message) }
+        controller.uiLauncher = uiLauncher::bringToFront
         registerActivityLifecycleCallbacks(ForegroundTracker)
     }
 

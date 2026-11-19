@@ -10,6 +10,7 @@ import com.icarocomix.icaromanagertv.mobile.R
 import com.icarocomix.icaromanagertv.mobile.client.RemoteClient
 import com.icarocomix.icaromanagertv.mobile.client.TvLogsUnsupportedException
 import com.icarocomix.icaromanagertv.mobile.diagnostics.CombinedLogExporter
+import com.icarocomix.icaromanagertv.mobile.launch.TvStarter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -30,6 +31,9 @@ import kotlinx.coroutines.withContext
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val client = RemoteClient(application, viewModelScope)
+
+    /** Apertura dell'app sulla TV, anche quando è chiusa (vedi [TvStarter]). */
+    val starter = TvStarter(application, client, viewModelScope)
     private var stopJob: Job? = null
     private val logExporter = CombinedLogExporter(application, client)
 
@@ -84,6 +88,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        starter.cancel()
         client.stop()
         super.onCleared()
     }

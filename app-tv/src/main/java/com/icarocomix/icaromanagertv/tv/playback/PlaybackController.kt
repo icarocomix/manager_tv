@@ -489,6 +489,8 @@ class PlaybackController(
         override fun onIsPlayingChanged(isPlaying: Boolean) = publish()
 
         override fun onTracksChanged(tracks: Tracks) {
+            // Disponibilità dei sottotitoli per il pulsante del telefono: cambia con le tracce.
+            publish()
             if (tracksChecked || tracks.isEmpty) return
             tracksChecked = true
             // ExoPlayer disattiva in silenzio le tracce che nessun decoder del televisore sa
@@ -589,8 +591,13 @@ class PlaybackController(
             volume = audio.level,
             volumeMax = audio.max,
             muted = audio.muted,
+            subtitles = hasSubtitles(p),
         )
     }
+
+    /** Tracce di sottotitoli che il player sa mostrare: le stesse offerte dal selettore Media3. */
+    private fun hasSubtitles(p: Player): Boolean =
+        p.currentTracks.groups.any { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
 
     private fun playWhenReadyReason(reason: Int): String = when (reason) {
         Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST -> "comando"

@@ -43,7 +43,7 @@
                     android:layout_width="56dp"
                     android:layout_height="56dp"
                     android:importantForAccessibility="no"
-                    android:src="@drawable/logo_app" />
+                    android:src="@drawable/logo_manager_tv" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -60,12 +60,6 @@
                         android:textSize="20sp"
                         android:textStyle="bold" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/tagline"
-                        android:textColor="@color/accent"
-                        android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -237,6 +231,7 @@
                 android:background="@drawable/tv_focus_item"
                 android:paddingStart="6dp"
                 android:paddingEnd="12dp"
+                android:checked="true"
                 android:text="@string/search_recursive"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp" />

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">IcaroManagerTV</string>
-    <string name="tagline">di IcaroComix</string>
+    <string name="app_name">Manager TV</string>
 
     <!-- Volumi -->
     <string name="volume_usb">Disco USB</string>
@@ -18,7 +17,7 @@
     <string name="error_open_denied">Il sistema ha negato l\'apertura di «%1$s».</string>
     <string name="error_no_player">Nessuna app installata può aprire «%1$s». Installa un player come VLC.</string>
     <string name="error_generic">Errore: %1$s</string>
-    <string name="warning_background_start">Il player potrebbe non comparire: apri IcaroManagerTV sulla TV o abilita «Avvio dal telefono».</string>
+    <string name="warning_background_start">Il player potrebbe non comparire: apri Manager TV sulla TV o abilita «Avvio dal telefono».</string>
 
     <!-- Servizio -->
     <string name="notification_channel">Server per lo smartphone</string>
@@ -42,7 +41,7 @@
     <string name="btn_overlay">Avvio dal telefono</string>
     <string name="btn_export_logs">Esporta log</string>
     <string name="logs_title">Esporta i log dell\'app</string>
-    <string name="logs_to_downloads">Salva in Download/IcaroManagerTV</string>
+    <string name="logs_to_downloads">Salva in Download/ManagerTV</string>
     <string name="logs_to_folder">Salva nella cartella aperta (%1$s)</string>
     <string name="logs_share">Condividi…</string>
     <string name="logs_from_phone">Dal telefono: menu ⋮ › Esporta log (TV + telefono)</string>
@@ -63,7 +62,7 @@
     <string name="saf_unavailable">Il selettore di cartelle non è disponibile su questa TV: usa «Accesso ai file».</string>
     <string name="saf_added">Cartella aggiunta agli archivi</string>
     <string name="overlay_title">Avvio dal telefono</string>
-    <string name="overlay_message">Per avviare un file dal telefono mentre sulla TV è aperto il player, Android richiede il permesso «Mostra sopra altre app».</string>
+    <string name="overlay_message">Per avviare un file o aprire Manager TV dal telefono mentre sulla TV è aperta un\'altra app, Android richiede il permesso «Mostra sopra altre app».</string>
     <string name="ok">OK</string>
 
     <!-- Player integrato -->
@@ -76,8 +75,16 @@
     <string name="btn_back_to_player">Torna al player</string>
     <string name="btn_close_player">Chiudi il player</string>
     <string name="mini_hint">OK: schermo intero</string>
+    <string name="player_panel_unavailable">Apri un video sulla TV per usare impostazioni e sottotitoli</string>
+    <string name="player_panel_resume_first">Scegli prima se riprendere il video</string>
+    <string name="player_no_subtitles">Il video non ha sottotitoli</string>
+    <string name="player_panel_not_ready">Comandi del player non ancora pronti, riprova</string>
+
+    <!-- Apertura dell'app dal telefono -->
+    <string name="ui_front_needs_overlay">La TV non ha aperto Manager TV: abilita «Avvio dal telefono» nel pannello della TV.</string>
+    <string name="ui_front_blocked">Il sistema della TV ha bloccato l\'apertura di Manager TV: aprila con il telecomando.</string>
     <string name="resume_auto">Ripresa automatica tra %1$d s</string>
 
-    <string name="credits_description_tv">File manager per Android TV: sfoglia i dischi USB collegati al televisore e riproduce video e musica con il player integrato (miniatura mentre sfogli, ripresa dal punto interrotto, riproduzione automatica della cartella) e apre foto e altri formati con le app installate. Si controlla anche dallo smartphone con l\'app IcaroManagerTV Remote, che trova la TV da sola nella rete Wi-Fi di casa.</string>
+    <string name="credits_description_tv">File manager per Android TV: sfoglia i dischi USB collegati al televisore e riproduce video e musica con il player integrato (miniatura mentre sfogli, ripresa dal punto interrotto, riproduzione automatica della cartella) e apre foto e altri formati con le app installate. Si controlla anche dallo smartphone con l\'app Manager TV Remote, che trova la TV da sola nella rete Wi-Fi di casa.</string>
     <string name="credits_libraries_tv">Realizzata con AndroidX, Media3 ExoPlayer e Session (Apache 2.0) e NanoHTTPD (BSD-3-Clause).</string>
 </resources>
