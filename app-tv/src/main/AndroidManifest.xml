@@ -24,11 +24,12 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <!-- Solo fino ad Android 9: salvataggio dei log esportati in Download (da Android 10 si
-         usa MediaStore, senza permessi). -->
+    <!-- Fino ad Android 10: scrittura sui dischi (operazioni sui file e ricezione dal telefono,
+         v1.9) e salvataggio dei log in Download. Su Android 10 vale con requestLegacyExternalStorage;
+         da Android 11 serve l'accesso a tutti i file (MANAGE_EXTERNAL_STORAGE). -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />

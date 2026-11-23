@@ -23,11 +23,14 @@ import java.util.Date
  * protocollo: chi lo usa non deve mai convertire posizioni.
  *
  * [focusable]: true sulla TV, dove le righe ricevono il focus del D-pad.
+ * [onLongPress] (v1.9): pressione prolungata (tocco sul telefono, OK tenuto sulla TV), che apre
+ * le operazioni sui file; se assente la pressione prolungata seleziona soltanto la voce.
  */
 class EntryAdapter(
     private val focusable: Boolean,
     private val onOpen: (index: Int) -> Unit,
     private val onSelect: (index: Int) -> Unit,
+    private val onLongPress: ((index: Int) -> Unit)? = null,
 ) : RecyclerView.Adapter<EntryAdapter.Holder>() {
 
     private var listing: Listing = Listing.EMPTY
@@ -108,7 +111,8 @@ class EntryAdapter(
         holder.bindProgress(progressOf(index))
         holder.itemView.setOnClickListener { onOpen(index) }
         holder.itemView.setOnLongClickListener {
-            onSelect(index)
+            val longPress = onLongPress
+            if (longPress != null) longPress(index) else onSelect(index)
             true
         }
         holder.itemView.onFocusChangeListener = if (focusable) {

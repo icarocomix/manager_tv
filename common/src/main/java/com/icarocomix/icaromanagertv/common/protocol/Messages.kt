@@ -68,7 +68,39 @@ data class RemoteState(
     val selected: Int = -1,
     val message: String? = null,
     val nowPlaying: String? = null,
+    /**
+     * Prima riga visibile sul telefono (indice in `Listing.entries`), -1 se non indicata (v1.9).
+     * La TV, con la sincronizzazione attiva, scorre l'elenco per mostrarla in cima.
+     */
+    val scrollTop: Int = -1,
 )
+
+/**
+ * Stato della TV comune a tutti i client e indipendente dalla cartella mostrata (v1.9): viaggia
+ * nel messaggio `status`, separato dallo stato del file manager.
+ *
+ * - [synced]: il telefono comanda la stessa navigazione della TV (default). Disattivata, il
+ *   telecomando della TV e il telefono si muovono ciascuno per conto proprio;
+ * - [clipCount]/[clipName]/[clipMove]: contenuto degli appunti (unici, sulla TV);
+ * - [opText]/[opPermille]: operazione sui file in corso (null se nessuna), avanzamento in
+ *   millesimi o -1 se non stimabile; [opCancelable] se si può annullare.
+ */
+data class TvStatus(
+    val synced: Boolean = true,
+    val clipCount: Int = 0,
+    val clipName: String? = null,
+    val clipMove: Boolean = false,
+    val opText: String? = null,
+    val opPermille: Int = -1,
+    val opCancelable: Boolean = false,
+) {
+    val hasClip: Boolean get() = clipCount > 0
+    val busy: Boolean get() = opText != null
+
+    companion object {
+        val DEFAULT = TvStatus()
+    }
+}
 
 /** Messaggi dalla TV al telefono. */
 sealed class ServerMessage {
@@ -82,6 +114,9 @@ sealed class ServerMessage {
 
     /** Avanzamento delle voci dell'elenco (dalla v1.2: i client precedenti lo ignorano). */
     data class ProgressMsg(val progress: ListingProgress) : ServerMessage()
+
+    /** Sincronizzazione, appunti e operazione in corso (dalla v1.9: i client precedenti lo ignorano). */
+    data class StatusMsg(val status: TvStatus) : ServerMessage()
 
     /** Errore fatale lato protocollo (es. versione incompatibile): il server chiude subito dopo. */
     data class Error(val text: String) : ServerMessage()
@@ -131,6 +166,23 @@ sealed class ClientMessage {
      * sottotitoli del player. Se l'app della TV non è visibile viene prima portata in primo piano.
      */
     data class Ui(val command: UiCommand) : ClientMessage()
+
+    // ---- v1.9. Un server precedente li scarta come messaggi sconosciuti.
+
+    /**
+     * Attiva o disattiva la sincronizzazione TV ↔ telefono. Riattivandola la TV si porta sulla
+     * posizione del telefono (cartella, ricerca, selezione e scroll).
+     */
+    data class Sync(val enabled: Boolean) : ClientMessage()
+
+    /** Prima riga visibile del telefono nell'elenco [seq] (indice in `Listing.entries`). */
+    data class Scroll(val seq: Int, val index: Int) : ClientMessage()
+
+    /**
+     * Operazione sui file. [seq]/[index] identificano la voce per le operazioni che la
+     * richiedono ([FileOpKind.needsEntry]); [name] è il nuovo nome per rinomina e nuova cartella.
+     */
+    data class FileOp(val op: FileOpKind, val seq: Int = -1, val index: Int = -1, val name: String? = null) : ClientMessage()
 }
 
 /**

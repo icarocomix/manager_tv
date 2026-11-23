@@ -124,21 +124,27 @@ class StorageRepository(private val context: Context) {
     // ------------------------------------------------------------------ elenco
 
     /** Contenuto ordinato di una cartella o di un volume: prima le cartelle, poi i file, ordine naturale. */
-    fun list(dir: Node): List<Node> {
-        val children = when (val ref = dir.ref) {
-            is NodeRef.Posix -> listPosix(ref.file)
-            is NodeRef.Saf -> listSaf(ref.treeUri, ref.documentId)
-        }
-        return children.sortedWith(compareBy<Node> { !it.kind.isContainer }.thenComparator { a, b -> NaturalOrder.compare(a.name, b.name) })
+    fun list(dir: Node): List<Node> =
+        listRaw(dir, includeHidden = false)
+            .sortedWith(compareBy<Node> { !it.kind.isContainer }.thenComparator { a, b -> NaturalOrder.compare(a.name, b.name) })
+
+    /**
+     * Contenuto non ordinato, file nascosti compresi a richiesta (v1.9): copie, spostamenti e
+     * calcolo dei nomi liberi devono vedere anche i file che l'elenco non mostra, altrimenti una
+     * cartella copiata perderebbe i suoi ".nomedia" e un nome "libero" potrebbe già esistere.
+     */
+    fun listRaw(dir: Node, includeHidden: Boolean): List<Node> = when (val ref = dir.ref) {
+        is NodeRef.Posix -> listPosix(ref.file, includeHidden)
+        is NodeRef.Saf -> listSaf(ref.treeUri, ref.documentId, includeHidden)
     }
 
-    private fun listPosix(dir: File): List<Node> {
+    private fun listPosix(dir: File, includeHidden: Boolean): List<Node> {
         // listFiles() restituisce null sia senza permesso sia con disco non pronto: in entrambi i
         // casi lo segnalo invece di mostrare una cartella vuota fuorviante.
         val files = dir.listFiles()
             ?: throw StorageAccessException(context.getString(R.string.error_unreadable, dir.absolutePath))
         return files.asSequence()
-            .filter { !it.name.startsWith(".") }
+            .filter { includeHidden || !it.name.startsWith(".") }
             .map { f ->
                 val isDir = f.isDirectory
                 Node(
@@ -152,7 +158,7 @@ class StorageRepository(private val context: Context) {
             .toList()
     }
 
-    private fun listSaf(tree: Uri, documentId: String): List<Node> {
+    private fun listSaf(tree: Uri, documentId: String, includeHidden: Boolean): List<Node> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
         val out = ArrayList<Node>()
         try {
@@ -160,7 +166,7 @@ class StorageRepository(private val context: Context) {
                 while (c.moveToNext()) {
                     val id = c.getString(0) ?: continue
                     val name = c.getString(1) ?: continue
-                    if (name.startsWith(".")) continue
+                    if (!includeHidden && name.startsWith(".")) continue
                     val mime = c.getString(2)
                     val isDir = mime == DocumentsContract.Document.MIME_TYPE_DIR
                     out += Node(
@@ -242,6 +248,9 @@ class StorageRepository(private val context: Context) {
         is NodeRef.Posix -> FileProvider.getUriForFile(context, "${context.packageName}.files", ref.file)
         is NodeRef.Saf -> DocumentsContract.buildDocumentUriUsingTree(ref.treeUri, ref.documentId)
     }
+
+    /** URI del documento SAF di un nodo (per le operazioni di scrittura di [FileOperations]). */
+    fun documentUri(ref: NodeRef.Saf): Uri = DocumentsContract.buildDocumentUriUsingTree(ref.treeUri, ref.documentId)
 
     fun mimeOf(node: Node): String =
         node.providerMime?.takeIf { it != MediaTypes.GENERIC && it.isNotBlank() } ?: MediaTypes.mimeFor(node.name)

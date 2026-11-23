@@ -9,6 +9,7 @@ import com.icarocomix.icaromanagertv.tv.controller.MediaLauncher
 import com.icarocomix.icaromanagertv.tv.diagnostics.LogExporter
 import com.icarocomix.icaromanagertv.tv.playback.PlaybackController
 import com.icarocomix.icaromanagertv.tv.playback.ProgressStore
+import com.icarocomix.icaromanagertv.tv.storage.FileOperations
 import com.icarocomix.icaromanagertv.tv.storage.StorageRepository
 import com.icarocomix.icaromanagertv.tv.ui.UiLauncher
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +35,8 @@ class TvApp : Application() {
     lateinit var controller: BrowserController
         private set
     lateinit var playback: PlaybackController
+        private set
+    lateinit var files: FileOperations
         private set
 
     /** Esportazione dei log (pulsante della TV ed endpoint HTTP per il telefono). */
@@ -78,7 +81,9 @@ class TvApp : Application() {
             onNowPlaying = { name -> controller.setNowPlaying(name) },
             onToast = { text -> controller.announce(text) },
         )
-        controller = BrowserController(this, storage, launcher, playback, progressStore, appScope)
+        // Scritture sui dischi (v1.9): operazioni del file manager e trasferimenti col telefono.
+        files = FileOperations(this, storage)
+        controller = BrowserController(this, storage, files, launcher, playback, progressStore, appScope)
         // Apertura dell'interfaccia su comando del telefono; un avvio bloccato dal sistema viene
         // segnalato con un toast che arriva anche al telefono.
         val uiLauncher = UiLauncher(this) { message -> controller.announce(message) }

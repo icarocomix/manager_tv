@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import java.io.File
 
 /**
  * Permessi di lettura dei dischi, che cambiano con la versione di Android:
@@ -21,12 +22,12 @@ object StorageAccess {
     fun runtimePermissions(): Array<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_IMAGES)
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         } else {
-            // Fino ad Android 9 la scrittura in Download (esportazione dei log) richiede il
-            // permesso esplicito; è nello stesso gruppo della lettura, quindi non apre un
-            // secondo dialogo se la lettura è già concessa.
+            // Fino ad Android 10 la scrittura sui dischi (operazioni sui file, ricezione dal
+            // telefono, log in Download) richiede il permesso esplicito; è nello stesso gruppo
+            // della lettura, quindi non apre un secondo dialogo se la lettura è già concessa.
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
 
@@ -37,6 +38,25 @@ object StorageAccess {
     /** Vero se l'app vede ogni file dei dischi, non solo quelli multimediali. */
     fun hasFullAccess(context: Context): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager() else hasRuntime(context)
+
+    /**
+     * Vero se il volume che contiene [file] è montato in sola lettura (tipico dei dischi NTFS
+     * sulle TV che non hanno il driver in scrittura): nessun permesso lo rende scrivibile.
+     * Lo stato viene da StorageManager; per percorsi fuori dai volumi è MEDIA_UNKNOWN → falso.
+     */
+    fun isReadOnlyVolume(file: File): Boolean = try {
+        Environment.getExternalStorageState(file) == Environment.MEDIA_MOUNTED_READ_ONLY
+    } catch (_: RuntimeException) {
+        false
+    }
+
+    /** Vero se [file] sta su un volume rimovibile (USB, scheda SD) e non sulla memoria interna. */
+    fun isRemovable(file: File): Boolean = try {
+        Environment.isExternalStorageRemovable(file)
+    } catch (_: IllegalArgumentException) {
+        // Percorso che non appartiene a nessun volume noto.
+        false
+    }
 
     /** Schermate di impostazione per l'accesso completo, dalla più specifica alla generica. */
     fun fullAccessIntents(context: Context): List<Intent> {

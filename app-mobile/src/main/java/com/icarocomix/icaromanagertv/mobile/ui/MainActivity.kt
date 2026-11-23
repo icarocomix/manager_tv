@@ -1,7 +1,16 @@
 package com.icarocomix.icaromanagertv.mobile.ui
 
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.webkit.MimeTypeMap
+import androidx.activity.result.contract.ActivityResultContract
 import android.text.Editable
 import android.text.TextWatcher
 import android.content.res.ColorStateList
@@ -37,8 +46,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.icarocomix.icaromanagertv.common.log.AppLogs
+import com.icarocomix.icaromanagertv.common.files.FileNames
 import com.icarocomix.icaromanagertv.common.protocol.ClientMessage
+import com.icarocomix.icaromanagertv.common.protocol.Entry
 import com.icarocomix.icaromanagertv.common.protocol.EntryKind
+import com.icarocomix.icaromanagertv.common.protocol.FileOpKind
+import com.icarocomix.icaromanagertv.common.protocol.TvStatus
 import com.icarocomix.icaromanagertv.common.protocol.Listing
 import com.icarocomix.icaromanagertv.common.protocol.PlaybackState
 import com.icarocomix.icaromanagertv.common.protocol.PlayerAction
@@ -53,7 +66,11 @@ import com.icarocomix.icaromanagertv.common.ui.EntryAdapter
 import com.icarocomix.icaromanagertv.common.util.TimeFormat
 import com.icarocomix.icaromanagertv.mobile.R
 import com.icarocomix.icaromanagertv.mobile.client.Connection
+import com.icarocomix.icaromanagertv.mobile.discovery.TvEndpoint
 import com.icarocomix.icaromanagertv.mobile.launch.StartState
+import com.icarocomix.icaromanagertv.mobile.transfer.TransferCenter
+import com.icarocomix.icaromanagertv.mobile.transfer.TransferJob
+import com.icarocomix.icaromanagertv.mobile.transfer.TransferState
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import com.icarocomix.icaromanagertv.common.R as CommonR
@@ -75,6 +92,40 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Scelta dei file del telefono da caricare sulla TV (selettore di sistema, più file). */
+    private val pickUploads = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val request = pendingUpload
+        pendingUpload = null
+        if (request == null || uris.isNullOrEmpty()) return@registerForActivityResult
+        // Permesso persistente finché il servizio lavora: l'activity può chiudersi nel frattempo.
+        // Lo rilascia il servizio a trasferimento concluso. La scrittura serve a "sposta".
+        uris.forEach { uri ->
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }.onFailure {
+                runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            }
+        }
+        startTransfer(TransferJob.Upload(request.tv, request.seq, uris, request.move))
+    }
+
+    /** Scelta del file di destinazione sul telefono per uno scaricamento dalla TV. */
+    private val createDownload = registerForActivityResult(CreateDocumentWithType()) { uri ->
+        val request = pendingDownload
+        pendingDownload = null
+        if (request == null || uri == null) return@registerForActivityResult
+        startTransfer(TransferJob.Download(request.tv, request.seq, request.index, request.name, request.size, uri))
+    }
+
+    /** Notifiche (Android 13+): servono solo a vedere l'avanzamento, i trasferimenti partono comunque. */
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+    private class UploadRequest(val tv: TvEndpoint, val seq: Int, val move: Boolean)
+    private class DownloadRequest(val tv: TvEndpoint, val seq: Int, val index: Int, val name: String, val size: Long)
+
+    private var pendingUpload: UploadRequest? = null
+    private var pendingDownload: DownloadRequest? = null
+
     private lateinit var toolbar: Toolbar
     private lateinit var banner: View
     private lateinit var bannerText: TextView
@@ -91,6 +142,24 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pad: View
     private lateinit var adapter: EntryAdapter
     private lateinit var crumbBar: CrumbBar
+    private lateinit var syncSwitch: SwitchCompat
+    private lateinit var opBar: View
+    private lateinit var opText: TextView
+    private lateinit var opProgress: ProgressBar
+    private lateinit var opCancel: ImageButton
+    private lateinit var transferBar: View
+    private lateinit var transferText: TextView
+    private lateinit var transferProgress: ProgressBar
+    private lateinit var clipBar: View
+    private lateinit var clipText: TextView
+    private lateinit var clipPaste: Button
+
+    // Scroll dell'elenco fatto dall'utente: lo invio alla TV (diradato) e, mentre dura, non
+    // riporto l'elenco sulla selezione che arriva dalla TV (combatterebbe con il dito).
+    private var userScrolling = false
+    private var lastUserScrollAt = 0L
+    private var lastScrollSentAt = 0L
+    private var lastScrollSent = -1
 
     // Schermate e controlli del player.
     private lateinit var browserScreen: View
@@ -173,6 +242,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 launch { viewModel.client.playback.collect(::renderPlayback) }
                 launch { viewModel.starter.state.collect(::renderStart) }
+                launch { viewModel.client.status.collect(::renderFileStatus) }
+                launch { TransferCenter.state.collect(::renderTransfer) }
+                launch { TransferCenter.events.collect { toast(it) } }
             }
         }
 
@@ -187,7 +259,13 @@ class MainActivity : AppCompatActivity() {
             val state = viewModel.client.state.value
             val canGoBack = viewModel.client.connection.value is Connection.Connected &&
                 (listing?.crumbs?.isNotEmpty() == true || state?.query?.isNotEmpty() == true)
-            if (canGoBack) send(ClientMessage.Key(RemoteKey.BACK)) else finish()
+            // Comandi di navigazione del telefono, non tasti del telecomando: con la
+            // sincronizzazione spenta devono muovere il telefono, non la TV.
+            when {
+                !canGoBack -> finish()
+                state?.query?.isNotEmpty() == true -> search.setText("")
+                else -> send(ClientMessage.Up)
+            }
         }
     }
 
@@ -233,6 +311,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.action_choose_tv -> showTvChooser()
                 R.id.action_open_on_tv -> viewModel.starter.openOnTv()
                 R.id.action_pair_tv -> viewModel.starter.pairNow()
+                R.id.action_mkdir -> showMkdirDialog()
                 R.id.action_refresh -> send(ClientMessage.Refresh)
                 R.id.action_export_logs -> createLogsDocument.launch(AppLogs.suggestedFileName("tv-telefono"))
                 R.id.action_credits -> CreditsDialog.show(this, R.string.credits_description_mobile, R.string.credits_libraries_mobile)
@@ -265,10 +344,18 @@ class MainActivity : AppCompatActivity() {
                 list.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 send(ClientMessage.Select(seq, index))
             },
+            // Pressione prolungata: evidenzio la voce sulla TV e apro le operazioni sui file.
+            onLongPress = { index ->
+                val seq = viewModel.client.listing.value?.seq ?: return@EntryAdapter
+                list.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                send(ClientMessage.Select(seq, index))
+                showFileActions(index)
+            },
         )
         list.layoutManager = LinearLayoutManager(this)
         list.adapter = adapter
         list.itemAnimator = null
+        list.addOnScrollListener(scrollSender)
 
         crumbBar = CrumbBar(findViewById<HorizontalScrollView>(R.id.crumbs_scroll), findViewById<LinearLayout>(R.id.crumbs)) { depth ->
             send(if (depth == 0) ClientMessage.Root else ClientMessage.Crumb(depth))
@@ -304,6 +391,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.cmd_root).setOnClickListener { send(ClientMessage.Root) }
         findViewById<Button>(R.id.cmd_up).setOnClickListener { send(ClientMessage.Up) }
         findViewById<Button>(R.id.cmd_refresh).setOnClickListener { send(ClientMessage.Refresh) }
+        findViewById<Button>(R.id.cmd_upload).setOnClickListener { chooseUpload() }
+        bindFileViews()
         findViewById<Button>(R.id.cmd_pad).setOnClickListener {
             pad.visibility = if (pad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
@@ -784,7 +873,7 @@ class MainActivity : AppCompatActivity() {
         // Selezione mossa dalla TV o dal pad: la porto in vista se è fuori schermo.
         if (structural) {
             list.scrollToPosition(maxOf(0, adapter.positionOf(state.selected)))
-        } else if (state.selected != lastSelected) {
+        } else if (state.selected != lastSelected && !isUserScrolling()) {
             val pos = adapter.positionOf(state.selected)
             val lm = list.layoutManager as LinearLayoutManager
             if (pos >= 0 && (pos < lm.findFirstCompletelyVisibleItemPosition() || pos > lm.findLastCompletelyVisibleItemPosition())) {
@@ -813,6 +902,291 @@ class MainActivity : AppCompatActivity() {
         search.setSelection(search.text.length)
         applyingRemote = false
         lastSentQuery = null
+    }
+
+    // ------------------------------------------------------------------ scroll verso la TV
+
+    private fun isUserScrolling(): Boolean =
+        userScrolling || SystemClock.elapsedRealtime() - lastUserScrollAt < USER_SCROLL_GRACE_MS
+
+    /**
+     * Scorrimento fatto con il dito: comunico alla TV la prima riga visibile per intero, così
+     * la TV mostra lo stesso punto dell'elenco. Gli scroll programmatici (selezione arrivata
+     * dalla TV, cambio di cartella) non partono: comincio solo da un trascinamento.
+     */
+    private val scrollSender = object : RecyclerView.OnScrollListener() {
+        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+            when (newState) {
+                RecyclerView.SCROLL_STATE_DRAGGING -> userScrolling = true
+                RecyclerView.SCROLL_STATE_IDLE -> if (userScrolling) {
+                    userScrolling = false
+                    lastUserScrollAt = SystemClock.elapsedRealtime()
+                    // Posizione finale sempre inviata: l'ultimo passo potrebbe essere stato diradato.
+                    sendScroll(force = true)
+                }
+            }
+        }
+
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            if (!userScrolling) return
+            lastUserScrollAt = SystemClock.elapsedRealtime()
+            sendScroll(force = false)
+        }
+    }
+
+    private fun sendScroll(force: Boolean) {
+        val seq = viewModel.client.listing.value?.seq ?: return
+        val index = firstVisibleIndex() ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (!force && (now - lastScrollSentAt < SCROLL_SEND_INTERVAL_MS || index == lastScrollSent)) return
+        lastScrollSentAt = now
+        lastScrollSent = index
+        send(ClientMessage.Scroll(seq, index), silent = true)
+    }
+
+    /** Indice (nell'elenco completo) della prima riga visibile per intero, o della prima visibile. */
+    private fun firstVisibleIndex(): Int? {
+        val lm = list.layoutManager as LinearLayoutManager
+        val position = lm.findFirstCompletelyVisibleItemPosition().takeIf { it != RecyclerView.NO_POSITION }
+            ?: lm.findFirstVisibleItemPosition().takeIf { it != RecyclerView.NO_POSITION }
+            ?: return null
+        return adapter.indexAt(position).takeIf { it >= 0 }
+    }
+
+    // ------------------------------------------------------------------ operazioni sui file
+
+    private fun bindFileViews() {
+        syncSwitch = findViewById(R.id.sync_switch)
+        opBar = findViewById(R.id.op_bar)
+        opText = findViewById(R.id.op_text)
+        opProgress = findViewById(R.id.op_progress)
+        opCancel = findViewById(R.id.op_cancel)
+        transferBar = findViewById(R.id.transfer_bar)
+        transferText = findViewById(R.id.transfer_text)
+        transferProgress = findViewById(R.id.transfer_progress)
+        clipBar = findViewById(R.id.clip_bar)
+        clipText = findViewById(R.id.clip_text)
+        clipPaste = findViewById(R.id.clip_paste)
+
+        syncSwitch.setOnCheckedChangeListener { _, checked ->
+            if (applyingRemote) return@setOnCheckedChangeListener
+            // Riattivando, la TV adotta la posizione del telefono: le mando prima lo scroll
+            // attuale, così si porta esattamente sul punto che sto guardando.
+            if (checked) {
+                val seq = viewModel.client.listing.value?.seq
+                val index = firstVisibleIndex()
+                if (seq != null && index != null) send(ClientMessage.Scroll(seq, index), silent = true)
+            }
+            send(ClientMessage.Sync(checked))
+        }
+        opCancel.setOnClickListener { send(ClientMessage.FileOp(FileOpKind.CANCEL)) }
+        findViewById<ImageButton>(R.id.transfer_cancel).setOnClickListener { TransferCenter.cancelAll() }
+        clipPaste.setOnClickListener {
+            if (viewModel.client.listing.value?.crumbs.isNullOrEmpty()) {
+                toast(getString(R.string.upload_need_folder))
+            } else {
+                send(ClientMessage.FileOp(FileOpKind.PASTE))
+            }
+        }
+        findViewById<ImageButton>(R.id.clip_clear).setOnClickListener { send(ClientMessage.FileOp(FileOpKind.CLEAR)) }
+    }
+
+    /** Stato comune della TV (v1.9): con una TV precedente queste funzioni restano nascoste. */
+    private fun renderFileStatus(status: TvStatus?) {
+        syncSwitch.visibility = if (status != null) View.VISIBLE else View.GONE
+        if (status == null) {
+            opBar.visibility = View.GONE
+            clipBar.visibility = View.GONE
+            return
+        }
+        if (syncSwitch.isChecked != status.synced) {
+            applyingRemote = true
+            syncSwitch.isChecked = status.synced
+            applyingRemote = false
+        }
+        opBar.visibility = if (status.busy) View.VISIBLE else View.GONE
+        if (status.busy) {
+            val percent = if (status.opPermille >= 0) " — ${status.opPermille / 10}%" else ""
+            opText.text = status.opText.orEmpty() + percent
+            opProgress.isIndeterminate = status.opPermille < 0
+            if (status.opPermille >= 0) opProgress.progress = status.opPermille
+            opCancel.visibility = if (status.opCancelable) View.VISIBLE else View.GONE
+        }
+        clipBar.visibility = if (status.hasClip) View.VISIBLE else View.GONE
+        if (status.hasClip) {
+            clipText.text = getString(if (status.clipMove) R.string.clip_move else R.string.clip_copy, status.clipName.orEmpty())
+            setEnabledLook(clipPaste, !status.busy)
+        }
+    }
+
+    private fun renderTransfer(state: TransferState?) {
+        transferBar.visibility = if (state != null) View.VISIBLE else View.GONE
+        if (state == null) return
+        val percent = if (state.permille >= 0) " — ${state.permille / 10}%" else ""
+        transferText.text = state.text + percent
+        transferProgress.isIndeterminate = state.permille < 0
+        if (state.permille >= 0) transferProgress.progress = state.permille
+    }
+
+    /** Operazioni sulla voce [index] dell'elenco della TV (pressione prolungata). */
+    private fun showFileActions(index: Int) {
+        val listing = viewModel.client.listing.value ?: return
+        val entry = listing.entries.getOrNull(index) ?: return
+        if (entry.kind == EntryKind.VOLUME) return
+        if (viewModel.client.status.value == null) {
+            toast(getString(R.string.fileops_unsupported))
+            return
+        }
+        val seq = listing.seq
+        val labels = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        fun add(label: Int, action: () -> Unit) {
+            labels += getString(label)
+            actions += action
+        }
+        add(R.string.action_copy) { send(ClientMessage.FileOp(FileOpKind.COPY, seq, index)) }
+        add(R.string.action_cut) { send(ClientMessage.FileOp(FileOpKind.CUT, seq, index)) }
+        add(R.string.action_rename) { showRenameDialog(seq, index, entry) }
+        add(R.string.action_delete) { confirmDelete(seq, index, entry) }
+        if (!entry.kind.isContainer) add(R.string.action_download) { chooseDownload(seq, index, entry) }
+        AlertDialog.Builder(this)
+            .setTitle(if (entry.kind.isContainer) getString(R.string.actions_title_folder, entry.name) else entry.name)
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showRenameDialog(seq: Int, index: Int, entry: Entry) {
+        showNameDialog(getString(R.string.rename_title, entry.name), entry.name, selectBaseOnly = !entry.kind.isContainer) { name ->
+            send(ClientMessage.FileOp(FileOpKind.RENAME, seq, index, name))
+        }
+    }
+
+    private fun showMkdirDialog() {
+        val listing = viewModel.client.listing.value
+        when {
+            viewModel.client.status.value == null -> toast(getString(R.string.fileops_unsupported))
+            listing == null || listing.crumbs.isEmpty() -> toast(getString(R.string.upload_need_folder))
+            else -> showNameDialog(getString(R.string.mkdir_title), "") { name -> send(ClientMessage.FileOp(FileOpKind.MKDIR, name = name)) }
+        }
+    }
+
+    /**
+     * Dialog per un nome, validato qui con le stesse regole della TV: un nome non valido mostra
+     * l'errore nel campo e lascia il dialog aperto invece di partire e fallire sulla TV.
+     */
+    private fun showNameDialog(title: String, initial: String, selectBaseOnly: Boolean = false, onValid: (String) -> Unit) {
+        val input = EditText(this).apply {
+            setText(initial)
+            hint = getString(R.string.name_hint)
+            isSingleLine = true
+            val end = if (selectBaseOnly) FileNames.split(initial).first.length else initial.length
+            setSelection(0, end.coerceIn(0, initial.length))
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(container)
+            .setPositiveButton(R.string.confirm, null)
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+        // Listener sostituito dopo show(): così un nome non valido non chiude il dialog.
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            when (val check = FileNames.check(input.text.toString())) {
+                is FileNames.Check.Valid -> {
+                    onValid(check.name)
+                    dialog.dismiss()
+                }
+                is FileNames.Check.Invalid -> input.error = getString(
+                    when (check.error) {
+                        FileNames.Problem.EMPTY -> R.string.name_err_empty
+                        FileNames.Problem.RESERVED -> R.string.name_err_reserved
+                        FileNames.Problem.FORBIDDEN_CHAR -> R.string.name_err_chars
+                        FileNames.Problem.TOO_LONG -> R.string.name_err_long
+                    },
+                )
+            }
+        }
+        input.requestFocus()
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+    }
+
+    private fun confirmDelete(seq: Int, index: Int, entry: Entry) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.delete_title, entry.name))
+            .setMessage(if (entry.kind.isContainer) R.string.delete_message_folder else R.string.delete_message_file)
+            .setPositiveButton(R.string.action_delete) { _, _ -> send(ClientMessage.FileOp(FileOpKind.DELETE, seq, index)) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    // ------------------------------------------------------------------ trasferimenti
+
+    /**
+     * Caricamento dal telefono nella cartella aperta: prima la scelta copia/sposta, poi il
+     * selettore di sistema (più file). La destinazione è fissata ora (sequenza dell'elenco), così
+     * spostarsi in un'altra cartella durante l'invio non cambia dove finiscono i file.
+     */
+    private fun chooseUpload() {
+        val tv = viewModel.client.connectedTv() ?: return toast(getString(R.string.transfer_no_tv))
+        if (viewModel.client.status.value == null) return toast(getString(R.string.transfer_unsupported))
+        val listing = viewModel.client.listing.value
+        if (listing == null || listing.crumbs.isEmpty()) return toast(getString(R.string.upload_need_folder))
+        val seq = listing.seq
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.upload_title, listing.crumbs.last()))
+            .setItems(arrayOf(getString(R.string.upload_copy), getString(R.string.upload_move))) { _, which ->
+                pendingUpload = UploadRequest(tv, seq, move = which == 1)
+                try {
+                    pickUploads.launch(arrayOf("*/*"))
+                } catch (e: android.content.ActivityNotFoundException) {
+                    pendingUpload = null
+                    toast(e.message ?: "ActivityNotFoundException")
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun chooseDownload(seq: Int, index: Int, entry: Entry) {
+        val tv = viewModel.client.connectedTv() ?: return toast(getString(R.string.transfer_no_tv))
+        pendingDownload = DownloadRequest(tv, seq, index, entry.name, entry.size)
+        val extension = FileNames.split(entry.name).second.removePrefix(".").lowercase()
+        val mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+        try {
+            createDownload.launch(entry.name to mime)
+        } catch (e: android.content.ActivityNotFoundException) {
+            pendingDownload = null
+            toast(e.message ?: "ActivityNotFoundException")
+        }
+    }
+
+    private fun startTransfer(job: TransferJob) {
+        // Le notifiche servono solo a vedere l'avanzamento fuori dall'app: chiedo il permesso
+        // ma il trasferimento parte comunque.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        TransferCenter.enqueue(this, job)
+    }
+
+    /** Come ActivityResultContracts.CreateDocument ma con il tipo MIME scelto a ogni lancio (nome, tipo). */
+    private class CreateDocumentWithType : ActivityResultContract<Pair<String, String>, Uri?>() {
+        override fun createIntent(context: Context, input: Pair<String, String>): Intent =
+            Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType(input.second)
+                .putExtra(Intent.EXTRA_TITLE, input.first)
+
+        override fun parseResult(resultCode: Int, intent: Intent?): Uri? =
+            if (resultCode == Activity.RESULT_OK) intent?.data else null
     }
 
     // ------------------------------------------------------------------ scelta della TV
@@ -850,5 +1224,11 @@ class MainActivity : AppCompatActivity() {
         const val VOLUME_SEND_INTERVAL_MS = 150L
         const val VOLUME_HOLD_MS = 1_200L
         const val VOLUME_KEY_REPEAT_MS = 180L
+
+        /** Diradamento degli scroll inviati alla TV durante il trascinamento. */
+        const val SCROLL_SEND_INTERVAL_MS = 120L
+
+        /** Dopo lo scroll col dito, per un attimo non riporto l'elenco sulla selezione della TV. */
+        const val USER_SCROLL_GRACE_MS = 1_000L
     }
 }

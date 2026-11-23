@@ -15,6 +15,7 @@ import com.icarocomix.icaromanagertv.common.protocol.Protocol
 import com.icarocomix.icaromanagertv.common.protocol.ProtocolCodec
 import com.icarocomix.icaromanagertv.common.protocol.RemoteState
 import com.icarocomix.icaromanagertv.common.protocol.ServerMessage
+import com.icarocomix.icaromanagertv.common.protocol.TvStatus
 import com.icarocomix.icaromanagertv.mobile.discovery.TvDiscovery
 import com.icarocomix.icaromanagertv.mobile.discovery.TvEndpoint
 import kotlinx.coroutines.CompletableDeferred
@@ -93,6 +94,14 @@ class RemoteClient(context: Context, private val scope: CoroutineScope) {
     /** Parte vista dei file dell'elenco; resta vuota con una TV precedente alla v1.2. */
     val progress: StateFlow<ListingProgress> = _progress.asStateFlow()
 
+    private val _status = MutableStateFlow<TvStatus?>(null)
+
+    /**
+     * Sincronizzazione, appunti e operazione in corso sulla TV (v1.9); null con una TV
+     * precedente, che non offre operazioni sui file né trasferimenti.
+     */
+    val status: StateFlow<TvStatus?> = _status.asStateFlow()
+
     private val _toasts = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val toasts: SharedFlow<String> = _toasts.asSharedFlow()
 
@@ -157,6 +166,9 @@ class RemoteClient(context: Context, private val scope: CoroutineScope) {
         discovery.probeNow()
         wake.trySend(Unit)
     }
+
+    /** TV collegata in questo momento (indirizzo e id per gli endpoint HTTP), o null. */
+    fun connectedTv(): TvEndpoint? = (_connection.value as? Connection.Connected)?.tv
 
     /** Invia un comando alla TV; false se non collegato. */
     fun send(message: ClientMessage): Boolean {
@@ -289,6 +301,7 @@ class RemoteClient(context: Context, private val scope: CoroutineScope) {
                         if (endpoint.id != playbackTvId) {
                             _playback.value = PlaybackState.IDLE
                             _progress.value = ListingProgress.EMPTY
+                            _status.value = null
                         }
                         playbackTvId = endpoint.id
                         _connection.value = Connection.Connected(endpoint, msg.name, msg.appVersion)
@@ -297,6 +310,7 @@ class RemoteClient(context: Context, private val scope: CoroutineScope) {
                     is ServerMessage.StateMsg -> _state.value = msg.state
                     is ServerMessage.PlaybackMsg -> _playback.value = msg.playback
                     is ServerMessage.ProgressMsg -> _progress.value = msg.progress
+                    is ServerMessage.StatusMsg -> _status.value = msg.status
                     is ServerMessage.Toast -> _toasts.tryEmit(msg.text)
                     is ServerMessage.Error -> fatal = msg.text
                     null -> Log.w(TAG, "Messaggio non riconosciuto dalla TV")

@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Ricezione dei beacon broadcast della TV: senza lock molti telefoni li scartano. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Trasferimenti di file con la TV (v1.9): servizio in primo piano con notifica di
+         avanzamento, così l'invio di un video continua anche uscendo dall'app. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- usesCleartextTraffic: il server della TV parla HTTP/WebSocket in chiaro in rete locale
          (indirizzi IP privati, non elencabili in una network security config). -->
@@ -28,5 +33,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".transfer.TransferService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>

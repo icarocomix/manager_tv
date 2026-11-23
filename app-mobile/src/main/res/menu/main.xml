@@ -16,6 +16,10 @@
         android:title="@string/menu_pair_tv"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_mkdir"
+        android:title="@string/menu_mkdir"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_refresh"
         android:title="@string/menu_refresh"
         app:showAsAction="never" />

@@ -22,7 +22,8 @@ volume della TV dal telefono: [docs/volume-tv-dal-telefono.md](docs/volume-tv-da
 controlli del player e pad del telefono come telecomando: [docs/pad-telefono-come-telecomando.md](docs/pad-telefono-come-telecomando.md);
 OK = pausa, Giù = timeline, apertura dell'app e pannelli del player dal telefono: [docs/ok-pausa-timeline-avvio-remoto.md](docs/ok-pausa-timeline-avvio-remoto.md);
 Indietro a due livelli, pad del telefono, avvio a freddo dal telefono e ricerca ricorsiva di default: [docs/indietro-pad-avvio-a-freddo-ricerca.md](docs/indietro-pad-avvio-a-freddo-ricerca.md);
-nuovo nome e nuova icona: [docs/nome-manager-tv-e-nuova-icona.md](docs/nome-manager-tv-e-nuova-icona.md).
+nuovo nome e nuova icona: [docs/nome-manager-tv-e-nuova-icona.md](docs/nome-manager-tv-e-nuova-icona.md);
+scroll sincronizzato, interruttore di sincronizzazione, operazioni sui file e trasferimenti telefono ↔ TV: [docs/sincronizzazione-operazioni-file-trasferimenti.md](docs/sincronizzazione-operazioni-file-trasferimenti.md).
 
 ## Uso del player
 
@@ -63,6 +64,35 @@ telefono mostra solo i tasti −/+/muto, senza cursore.
 
 Durante la riproduzione (non in pausa) la TV tiene lo schermo acceso: niente salvaschermo né
 standby per inattività, che prima mettevano in pausa il video dopo circa 20 minuti.
+
+## Sincronizzazione e operazioni sui file (v1.9)
+
+| Dove | Azione | Effetto |
+|---|---|---|
+| Telefono | Interruttore «Sincronizza con la TV» (attivo di default) | Attivo: la TV segue cartelle, selezione **e scorrimento** del telefono e viceversa. Spento: telefono e telecomando della TV navigano ciascuno per conto proprio |
+| TV, pannello laterale | Casella «Segui lo smartphone» | Stesso interruttore, visto e comandato dalla TV |
+| Telefono / TV | Riattivazione della sincronizzazione | La TV si porta sulla posizione del telefono (cartella, ricerca, selezione, scorrimento) |
+| Telefono | Pressione prolungata su una voce | Copia, Taglia, Rinomina, Elimina, Scarica sul telefono (solo file) |
+| Telefono | Barra «Appunti» → «Incolla qui» | Incolla nella cartella aperta sul telefono |
+| Telefono | «Carica» nella barra in basso | Copia o sposta file del telefono (più file) nella cartella aperta della TV |
+| Telefono, menu ⋮ | «Nuova cartella» | Crea una cartella nella cartella aperta |
+| TV | Tasto Menu, OK tenuto premuto su una voce o «Operazioni sui file» | Copia, Taglia, Incolla qui, Rinomina, Elimina, Nuova cartella, Svuota appunti, Annulla operazione |
+
+Gli appunti sono unici e stanno sulla TV: si copia dal telefono e si incolla col telecomando, o
+viceversa. Le operazioni lunghe mostrano l'avanzamento su TV e telefono e si possono annullare
+(un file lasciato a metà viene eliminato). Il pad del telefono resta un telecomando della TV anche
+con la sincronizzazione spenta. I trasferimenti telefono ↔ TV girano in un servizio in primo piano
+del telefono con notifica e pulsante «Annulla»: continuano anche uscendo dall'app.
+
+Scrittura sui dischi: da Android 11 serve «Accesso a tutti i file»; fino ad Android 10 il
+permesso di archiviazione (e i dischi USB sono scrivibili solo tramite «Aggiungi cartella»). Dalla
+v1.9.1 l'app chiede tutti i permessi necessari al primo avvio di ogni nuova versione installata
+(Android non concede i permessi speciali durante l'installazione, se non via ADB con
+`installa-tv.sh`) e ripropone subito la richiesta sulla TV se un'operazione fallisce per un
+permesso mancante. I dischi montati in sola lettura (spesso NTFS) vengono segnalati come tali:
+nessun permesso li rende scrivibili. Le cartelle aggiunte con «Aggiungi
+cartella» (SAF) prima della v1.9 erano autorizzate in sola lettura: per scriverci vanno aggiunte
+di nuovo.
 
 ## Log di diagnostica
 
@@ -127,7 +157,9 @@ adb -s <telefono> install build/outputs/apk/app-mobile-release.apk
 
 `installa-tv.sh` installa l'app TV, le concede i permessi (lettura, «Accesso a tutti i file»,
 «Mostra sopra altre app»), la esclude dall'ottimizzazione della batteria e la avvia una volta:
-sulla TV non serve nessun passaggio manuale. Il primo avvio è indispensabile perché Android
+sulla TV non serve nessun passaggio manuale. Installando l'APK in altro modo, al primo avvio
+l'app guida l'utente nella concessione dei permessi (lettura, «Accesso a tutti i file», «Mostra
+sopra altre app»), una schermata di sistema alla volta. Il primo avvio è indispensabile perché Android
 tiene «ferma» un'app appena installata finché non viene aperta.
 
 Sul telefono basta aprire Manager TV Remote sulla stessa rete Wi-Fi: la TV viene trovata,

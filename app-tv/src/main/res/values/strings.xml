@@ -52,8 +52,11 @@
     <string name="btn_power">Spegni server ed esci</string>
 
     <!-- Dialog permessi -->
-    <string name="perm_full_title">Accesso completo ai file</string>
-    <string name="perm_full_message">Con il solo permesso per i contenuti multimediali Android mostra cartelle, video, musica e foto ma nasconde gli altri file (sottotitoli, playlist…). Per vedere tutto concedi «Accesso a tutti i file» nella schermata che si apre.</string>
+    <string name="setup_full_title">Permesso per gestire i file</string>
+    <string name="setup_full_message">Per copiare, spostare, rinominare ed eliminare file e per ricevere file dal telefono, Manager TV ha bisogno di «Accesso a tutti i file».\n\nNella schermata che si apre attiva l\'interruttore accanto a Manager TV, poi torna indietro.</string>
+    <string name="setup_overlay_title">Permesso per aprirsi dal telefono</string>
+    <string name="setup_overlay_message">Per portare Manager TV in primo piano quando la apri dal telefono, consenti «Mostra sopra altre app».\n\nNella schermata che si apre attiva l\'interruttore accanto a Manager TV, poi torna indietro.</string>
+    <string name="setup_continue">Continua</string>
     <string name="perm_open_settings">Apri impostazioni</string>
     <string name="perm_not_now">Non ora</string>
     <string name="perm_adb_title">Impostazione non disponibile su questa TV</string>
@@ -84,6 +87,76 @@
     <string name="ui_front_needs_overlay">La TV non ha aperto Manager TV: abilita «Avvio dal telefono» nel pannello della TV.</string>
     <string name="ui_front_blocked">Il sistema della TV ha bloccato l\'apertura di Manager TV: aprila con il telecomando.</string>
     <string name="resume_auto">Ripresa automatica tra %1$d s</string>
+
+
+    <!-- Operazioni sui file (v1.9) -->
+    <string name="fop_err_exists">Esiste già un elemento chiamato «%1$s»</string>
+    <string name="fop_err_write_posix">Scrittura non consentita in «%1$s»: manca il permesso «Accesso a tutti i file» sulla TV. La richiesta compare in Manager TV sulla TV (oppure usa «Accesso ai file» nel pannello laterale).</string>
+    <string name="fop_err_write_permission">Scrittura non consentita in «%1$s»: manca il permesso di accesso ai file sulla TV. La richiesta compare in Manager TV sulla TV.</string>
+    <string name="fop_err_write_readonly">«%1$s» si trova su un disco montato in sola lettura (spesso succede con i dischi NTFS): la TV non può modificarlo. Usa un disco formattato exFAT o FAT32.</string>
+    <string name="fop_err_write_legacy">Su questa versione di Android i dischi USB sono scrivibili solo tramite una cartella autorizzata: sulla TV usa «Aggiungi cartella…» e scegli il disco che contiene «%1$s».</string>
+    <string name="fop_err_write_other">Scrittura non riuscita in «%1$s»: %2$s</string>
+    <string name="fop_err_write_unknown">il sistema ha rifiutato l\'operazione</string>
+    <string name="fop_err_write_saf">«%1$s» non è autorizzata in scrittura: aggiungi di nuovo la cartella con «Aggiungi cartella».</string>
+    <string name="fop_err_space">Spazio insufficiente: servono %1$s, liberi %2$s</string>
+    <string name="fop_err_into_itself">Non si può copiare o spostare una cartella dentro sé stessa</string>
+    <string name="fop_err_failed">Operazione non riuscita su «%1$s»: %2$s</string>
+    <string name="fop_err_unsupported">Operazione non supportata su «%1$s»</string>
+    <string name="fop_err_gone">«%1$s» non esiste più</string>
+    <string name="fop_err_read">Impossibile leggere «%1$s»</string>
+    <string name="fop_err_delete">Impossibile eliminare «%1$s»</string>
+    <string name="fop_err_busy">È già in corso un\'operazione sui file: attendi la fine o annullala</string>
+    <string name="fop_err_volume">Gli archivi non si possono copiare, spostare, rinominare o eliminare</string>
+    <string name="fop_err_no_folder">Apri prima la cartella di destinazione</string>
+    <string name="fop_err_clip_empty">Gli appunti sono vuoti: usa prima «Copia» o «Taglia»</string>
+    <string name="fop_err_name_empty">Il nome non può essere vuoto</string>
+    <string name="fop_err_name_reserved">Nome non consentito</string>
+    <string name="fop_err_name_chars">Il nome non può contenere / \\ : * ? \" &lt; &gt; |</string>
+    <string name="fop_err_name_long">Il nome è troppo lungo</string>
+    <string name="fop_copied">«%1$s» copiato negli appunti</string>
+    <string name="fop_cut">«%1$s» pronto per lo spostamento: apri la destinazione e incolla</string>
+    <string name="fop_clip_cleared">Appunti svuotati</string>
+    <string name="fop_working_copy">Copia di «%1$s»</string>
+    <string name="fop_working_move">Spostamento di «%1$s»</string>
+    <string name="fop_working_delete">Eliminazione di «%1$s»</string>
+    <string name="fop_working_rename">Rinomina di «%1$s»</string>
+    <string name="fop_working_mkdir">Creazione della cartella «%1$s»</string>
+    <string name="fop_working_upload">Ricezione dal telefono: «%1$s»</string>
+    <string name="fop_done_paste">Incollato in «%1$s»</string>
+    <string name="fop_done_delete">«%1$s» eliminato</string>
+    <string name="fop_done_rename">Rinominato in «%1$s»</string>
+    <string name="fop_done_mkdir">Cartella «%1$s» creata</string>
+    <string name="fop_done_upload">«%1$s» ricevuto dal telefono</string>
+    <string name="fop_cancelled">Operazione annullata</string>
+    <string name="upload_err_name">Nome del file non valido</string>
+    <string name="upload_err_folder">La cartella di destinazione non è più disponibile: riaprila e riprova</string>
+    <string name="upload_err_interrupted">Ricezione di «%1$s» interrotta</string>
+    <string name="download_err_gone">Il file non è più nell\'elenco: aggiorna e riprova</string>
+
+    <!-- Interfaccia delle operazioni sui file e sincronizzazione (v1.9) -->
+    <string name="sync_switch">Segui lo smartphone</string>
+    <string name="btn_file_actions">Operazioni sui file</string>
+    <string name="actions_title">«%1$s»</string>
+    <string name="actions_title_folder">Cartella «%1$s»</string>
+    <string name="action_copy">Copia</string>
+    <string name="action_cut">Taglia (sposta)</string>
+    <string name="action_paste">Incolla qui «%1$s»</string>
+    <string name="action_rename">Rinomina</string>
+    <string name="action_delete">Elimina</string>
+    <string name="action_mkdir">Nuova cartella</string>
+    <string name="action_clear_clip">Svuota gli appunti</string>
+    <string name="action_cancel_op">Annulla l\'operazione in corso</string>
+    <string name="rename_title">Rinomina «%1$s»</string>
+    <string name="mkdir_title">Nuova cartella</string>
+    <string name="mkdir_hint">Nome della cartella</string>
+    <string name="delete_title">Eliminare «%1$s»?</string>
+    <string name="delete_message_file">Il file verrà eliminato definitivamente dal disco.</string>
+    <string name="delete_message_folder">La cartella verrà eliminata definitivamente con tutto il suo contenuto.</string>
+    <string name="confirm">Conferma</string>
+    <string name="cancel">Annulla</string>
+    <string name="clip_status_copy">Appunti: «%1$s» (copia) · Menu → Incolla qui</string>
+    <string name="clip_status_move">Appunti: «%1$s» (sposta) · Menu → Incolla qui</string>
+    <string name="actions_none">Nessuna operazione disponibile qui</string>
 
     <string name="credits_description_tv">File manager per Android TV: sfoglia i dischi USB collegati al televisore e riproduce video e musica con il player integrato (miniatura mentre sfogli, ripresa dal punto interrotto, riproduzione automatica della cartella) e apre foto e altri formati con le app installate. Si controlla anche dallo smartphone con l\'app Manager TV Remote, che trova la TV da sola nella rete Wi-Fi di casa.</string>
     <string name="credits_libraries_tv">Realizzata con AndroidX, Media3 ExoPlayer e Session (Apache 2.0) e NanoHTTPD (BSD-3-Clause).</string>

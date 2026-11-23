@@ -218,3 +218,50 @@ logo e banner.
 > etichette «Manager TV» / «Manager TV Remote» verificate negli APK.
 > Da fare sull'hardware reale: aspetto dell'icona nei launcher (maschere diverse, icone a tema),
 > banner nel launcher della TV, ricerca della TV da un telefono v1.8 verso una TV ancora v1.7.
+
+## Fase 15 — Scroll sincronizzato, interruttore di sincronizzazione, operazioni sui file e trasferimenti telefono ↔ TV (v1.9.0)
+Decisioni: il controller della TV gestisce due sessioni di navigazione (TV e telefono); con la
+sincronizzazione attiva (default, preferenza persistente sulla TV) il telefono usa la stessa
+sessione della TV, disattivandola riceve una copia indipendente; riattivandola la TV adotta
+posizione, ricerca, selezione e scroll del telefono. Scroll del telefono → messaggio `scroll`
+(indice della prima riga visibile), applicato dalla TV in testa all'elenco. Operazioni sui file
+(copia/taglia/incolla/elimina/rinomina/nuova cartella) eseguite dalla TV su POSIX e SAF, con
+appunti unici della TV, avanzamento e annullamento nello stato `status`. Trasferimenti: upload
+HTTP in streaming (telefono → cartella aperta, con "sposta" = eliminazione dell'originale a
+upload riuscito) e download (file della TV → telefono) in un servizio in primo piano del
+telefono. Messaggi nuovi retrocompatibili: Protocol.VERSION resta 1 → MINOR.
+- [x] common: TvStatus, FileOpKind, ClientMessage Sync/Scroll/FileOp, scrollTop nello stato, percorsi upload/download, FileNames (validazione e nomi univoci), codec, test
+- [x] tv: FileOperations (POSIX + SAF: crea cartella, rinomina, elimina, copia/sposta con avanzamento, scrittura upload)
+- [x] tv: BrowserController a sessioni (TV/telefono), sincronizzazione, scroll, appunti, operazioni, indice degli elenchi recenti
+- [x] tv: RemoteServer (flussi della sessione telefono, `status`, endpoint upload/download)
+- [x] tv: UI (scroll remoto, interruttore, menu operazioni, dialog rinomina/nuova cartella/elimina, avanzamento, permesso SAF in scrittura)
+- [x] mobile: RemoteClient (status, upload/download), TransferService in primo piano, UI (interruttore, azioni, appunti, carica/scarica, invio scroll)
+- [x] version.properties 1.9.0 (versionCode 12), README, docs
+- [x] build sequenziale: test :common, assembleDebug tv, assembleDebug mobile, distApk
+
+> Esito fase 15: test `:common` 35/35, assembleDebug tv+mobile OK, `distApk` OK in 143 s (v1.9.0, versionCode 12).
+> Da fare sull'hardware reale: scroll del telefono seguito dalla TV (focus che resta sull'elenco);
+> interruttore spento → telecomando e telefono indipendenti, pad del telefono che comanda la TV;
+> riattivazione → TV sulla posizione del telefono; copia/taglia/incolla/rinomina/elimina su USB
+> (Android 11+ con accesso a tutti i file, Android 9/10 via SAF), annullamento di una copia lunga
+> senza file parziali; caricamento di più video dal telefono in copia e in spostamento (originale
+> eliminato), notifica e Annulla; scaricamento di un file della TV sul telefono.
+
+## Fase 16 — Interruttore autoplay visibile, permessi di scrittura chiesti all'installazione (v1.9.1)
+Diagnosi: l'interruttore «Riproduzione automatica del successivo» c'è ancora ma in fondo alla
+schermata del player del telefono, spinto fuori vista dalle righe aggiunte (sottotitoli,
+impostazioni, volume) e dal pad aperto. Errore di scrittura: con i soli permessi multimediali
+(Android 11+) la TV legge ma non scrive; l'«Accesso a tutti i file» veniva proposto una sola
+volta nella vita dell'app (già scartato con le versioni di sola lettura) → mai più richiesto.
+Android non concede permessi speciali all'installazione: procedura guidata al primo avvio di ogni
+versione (lettura → accesso a tutti i file → sovrapposizione), riproposta quando un'operazione
+fallisce per il permesso mancante; `installa-tv.sh` li concede già via ADB.
+- [x] mobile: interruttore autoplay subito sotto il titolo (sempre visibile)
+- [x] tv: diagnosi precisa del rifiuto di scrittura (permesso mancante / disco in sola lettura / Android 9-10 su USB)
+- [x] tv: procedura permessi a ogni nuova versione + richiesta immediata quando manca l'accesso completo
+- [x] version.properties 1.9.1 (versionCode 13), README, docs
+- [x] build sequenziale: test :common, assembleDebug tv, assembleDebug mobile, distApk
+
+> Esito fase 16: test `:common` OK, assembleDebug tv+mobile OK, `distApk` OK (v1.9.1, versionCode 13).
+> Da fare sull'hardware reale: procedura permessi al primo avvio dopo l'aggiornamento; copia/sposta/
+> rinomina/elimina e caricamento su USB; richiesta che ricompare dopo un rifiuto; autoplay visibile.

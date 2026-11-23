@@ -67,6 +67,29 @@ object Protocol {
     /** Parametro di [LOGS_PATH] con l'identificativo della TV. */
     const val LOGS_ID_PARAM = "id"
 
+    /**
+     * Caricamento di un file dal telefono nella cartella della TV (v1.9): POST con il contenuto
+     * del file come corpo (Content-Length obbligatorio) e i parametri [LOGS_ID_PARAM],
+     * [SEQ_PARAM] (elenco mostrato al telefono quando ha scelto la destinazione) e [NAME_PARAM].
+     * Risposta JSON con il nome definitivo (`name`), che può differire se il nome era già usato.
+     */
+    const val UPLOAD_PATH = "/api/upload"
+
+    /**
+     * Scaricamento di un file della TV sul telefono (v1.9): GET con [LOGS_ID_PARAM], [SEQ_PARAM] e
+     * [INDEX_PARAM], cioè la stessa coppia (elenco, indice) usata dai comandi sul WebSocket.
+     */
+    const val DOWNLOAD_PATH = "/api/download"
+
+    /** Sequenza dell'elenco a cui si riferiscono [UPLOAD_PATH] e [DOWNLOAD_PATH]. */
+    const val SEQ_PARAM = "seq"
+
+    /** Indice della voce nell'elenco per [DOWNLOAD_PATH]. */
+    const val INDEX_PARAM = "index"
+
+    /** Nome del file caricato con [UPLOAD_PATH]. */
+    const val NAME_PARAM = "name"
+
     /** Limite di risultati della ricerca ricorsiva: oltre, la lista diventa inutilizzabile. */
     const val MAX_SEARCH_RESULTS = 1_000
 
@@ -184,5 +207,45 @@ enum class UiCommand(val wire: String) {
 
     companion object {
         fun fromWire(code: String?): UiCommand? = entries.firstOrNull { it.wire == code }
+    }
+}
+
+/**
+ * Operazioni sui file del disco della TV (v1.9). Gli appunti sono unici e vivono sulla TV: un
+ * file copiato dal telefono si può incollare dal telecomando e viceversa.
+ */
+enum class FileOpKind(val wire: String) {
+    /** Mette la voce negli appunti per una copia. */
+    COPY("copy"),
+
+    /** Mette la voce negli appunti per uno spostamento. */
+    CUT("cut"),
+
+    /** Incolla gli appunti nella cartella aperta da chi invia il comando. */
+    PASTE("paste"),
+
+    /** Elimina la voce (le cartelle con tutto il contenuto). La conferma la chiede l'interfaccia. */
+    DELETE("delete"),
+
+    /** Rinomina la voce con il nome indicato. */
+    RENAME("rename"),
+
+    /** Crea una cartella con il nome indicato nella cartella aperta. */
+    MKDIR("mkdir"),
+
+    /** Annulla l'operazione in corso. */
+    CANCEL("cancel"),
+
+    /** Svuota gli appunti. */
+    CLEAR("clear");
+
+    /** Operazione riferita a una voce dell'elenco (richiede sequenza e indice). */
+    val needsEntry: Boolean get() = this == COPY || this == CUT || this == DELETE || this == RENAME
+
+    /** Operazione che richiede un nome. */
+    val needsName: Boolean get() = this == RENAME || this == MKDIR
+
+    companion object {
+        fun fromWire(code: String?): FileOpKind? = entries.firstOrNull { it.wire == code }
     }
 }

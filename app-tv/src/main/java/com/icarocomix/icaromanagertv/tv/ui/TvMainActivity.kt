@@ -3,6 +3,7 @@ package com.icarocomix.icaromanagertv.tv.ui
 import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.SystemClock
@@ -30,6 +31,7 @@ import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -37,12 +39,17 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.icarocomix.icaromanagertv.common.files.FileNames
 import com.icarocomix.icaromanagertv.common.protocol.ClientMessage
+import com.icarocomix.icaromanagertv.common.protocol.Entry
+import com.icarocomix.icaromanagertv.common.protocol.EntryKind
+import com.icarocomix.icaromanagertv.common.protocol.FileOpKind
 import com.icarocomix.icaromanagertv.common.protocol.Listing
 import com.icarocomix.icaromanagertv.common.protocol.PlaybackState
 import com.icarocomix.icaromanagertv.common.protocol.PlayerAction
 import com.icarocomix.icaromanagertv.common.protocol.RemoteKey
 import com.icarocomix.icaromanagertv.common.protocol.RemoteState
+import com.icarocomix.icaromanagertv.common.protocol.TvStatus
 import com.icarocomix.icaromanagertv.common.protocol.TvView
 import com.icarocomix.icaromanagertv.common.protocol.UiCommand
 import com.icarocomix.icaromanagertv.common.search.SearchText
@@ -96,6 +103,14 @@ class TvMainActivity : AppCompatActivity() {
     private lateinit var resumeMessage: TextView
     private lateinit var resumeCountdown: TextView
     private lateinit var resumeYes: Button
+    private lateinit var syncSwitch: CheckBox
+    private lateinit var opBar: View
+    private lateinit var opText: TextView
+    private lateinit var opProgress: ProgressBar
+    private lateinit var clipText: TextView
+
+    /** Ultimo scroll del telefono applicato (sequenza dell'elenco, indice): lo applico una volta sola. */
+    private var lastAppliedScroll: Pair<Int, Int>? = null
 
     // Sincronizzazione del campo di ricerca: evito che l'eco di una query vecchia (inviata da
     // qui un attimo prima) sovrascriva il testo che l'utente sta ancora digitando.
@@ -133,17 +148,24 @@ class TvMainActivity : AppCompatActivity() {
         refreshPanelButtons()
         if (StorageAccess.hasRuntime(this)) {
             controller.onVolumesChanged()
-            offerFullAccessOnce()
         } else {
             toast(getString(R.string.perm_denied))
         }
+        nextSetupStep()
     }
 
     private val treeLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@registerForActivityResult
         try {
             // Rendo persistente l'autorizzazione: la cartella resta tra gli archivi ai riavvii.
-            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Chiedo anche la scrittura (operazioni sui file e ricezione dal telefono, v1.9);
+            // se il selettore l'ha concessa in sola lettura ripiego su quella.
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Cartella SAF concessa in sola lettura: $uri", e)
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             controller.onVolumesChanged()
             toast(getString(R.string.saf_added))
         } catch (e: SecurityException) {
@@ -154,7 +176,20 @@ class TvMainActivity : AppCompatActivity() {
     private val settingsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         refreshPanelButtons()
         controller.submit(ClientMessage.Refresh)
+        // Ritorno da una schermata di sistema aperta dalla procedura dei permessi: passo alla
+        // richiesta successiva (nessun effetto se la procedura non è in corso).
+        nextSetupStep()
     }
+
+    /**
+     * Procedura dei permessi (lettura → accesso a tutti i file → sovrapposizione). Android non
+     * concede i permessi speciali durante l'installazione (solo via ADB, vedi installa-tv.sh),
+     * quindi la eseguo al primo avvio di ogni versione installata: un aggiornamento che introduce
+     * nuove funzioni (es. la scrittura, v1.9) ripropone ciò che manca. Ogni passo è chiesto una
+     * sola volta per giro, anche se l'utente rifiuta, per non entrare in un ciclo di richieste.
+     */
+    private var setupRunning = false
+    private val setupAsked = HashSet<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -175,6 +210,10 @@ class TvMainActivity : AppCompatActivity() {
                 launch { controller.toasts.collect(::toast) }
                 launch { playback.player.collect(::attachPlayer) }
                 launch { playback.state.collect(::renderPlayback) }
+                launch { controller.status.collect(::renderFileStatus) }
+                // Scrittura fallita per un permesso mancante (anche da un'operazione partita dal
+                // telefono): ripropongo subito la richiesta invece del solo messaggio d'errore.
+                launch { controller.accessRequest.collect { if (it) onAccessNeeded() } }
             }
         }
 
@@ -251,6 +290,12 @@ class TvMainActivity : AppCompatActivity() {
             return true
         }
         if (handleFullscreenPlayerKey(event, state)) return true
+        // Tasto Menu del telecomando: operazioni sui file della voce selezionata (v1.9). Non a
+        // schermo intero, dove il file manager non è visibile.
+        if (event.keyCode == KeyEvent.KEYCODE_MENU && !(state.active && state.view == TvView.FULLSCREEN)) {
+            if (event.action == KeyEvent.ACTION_UP && hasWindowFocus()) showFileActions(controller.state.value.selected)
+            return true
+        }
         return super.dispatchKeyEvent(event)
     }
 
@@ -476,6 +521,11 @@ class TvMainActivity : AppCompatActivity() {
         resumeMessage = findViewById(R.id.resume_message)
         resumeCountdown = findViewById(R.id.resume_countdown)
         resumeYes = findViewById(R.id.resume_yes)
+        syncSwitch = findViewById(R.id.sync_switch)
+        opBar = findViewById(R.id.op_bar)
+        opText = findViewById(R.id.op_text)
+        opProgress = findViewById(R.id.op_progress)
+        clipText = findViewById(R.id.clip_text)
         bindPlayerViews()
 
         adapter = EntryAdapter(
@@ -487,6 +537,8 @@ class TvMainActivity : AppCompatActivity() {
                 lastSelected = index
                 controller.submit(ClientMessage.Select(controller.listing.value.seq, index))
             },
+            // OK tenuto premuto su una riga: operazioni sui file di quella voce.
+            onLongPress = { index -> showFileActions(index) },
         )
         list.layoutManager = LinearLayoutManager(this)
         list.adapter = adapter
@@ -521,6 +573,10 @@ class TvMainActivity : AppCompatActivity() {
             if (!applyingRemote) controller.submit(ClientMessage.Recursive(checked))
         }
 
+        syncSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!applyingRemote) controller.submit(ClientMessage.Sync(checked))
+        }
+        findViewById<Button>(R.id.btn_file_actions).setOnClickListener { showFileActions(controller.state.value.selected) }
         findViewById<Button>(R.id.btn_root).setOnClickListener { controller.submit(ClientMessage.Root) }
         findViewById<Button>(R.id.btn_refresh).setOnClickListener { controller.submit(ClientMessage.Refresh) }
         findViewById<Button>(R.id.btn_add_saf).setOnClickListener { openTreePicker() }
@@ -729,6 +785,10 @@ class TvMainActivity : AppCompatActivity() {
         // Se il focus era nell'elenco (o in nessun punto), dopo un cambio di elenco lo riporto
         // sulla voce selezionata: notifyDataSetChanged altrimenti lo perderebbe.
         val focusInList = list.hasFocus() || currentFocus == null
+        // Scroll del telefono ancora da applicare (sincronizzazione attiva, o adozione della
+        // posizione del telefono alla riattivazione).
+        val scrollKey = listing.seq to state.scrollTop
+        val pendingScroll = state.scrollTop >= 0 && scrollKey != lastAppliedScroll
         adapter.submit(listing, visible, state.selected)
         lastSeq = listing.seq
 
@@ -755,7 +815,8 @@ class TvMainActivity : AppCompatActivity() {
         val position = adapter.positionOf(state.selected)
         if (structural) {
             lastSelected = state.selected
-            if (focusInList && position >= 0) focusPosition(position)
+            // Con uno scroll del telefono da applicare il focus lo sistema applyRemoteScroll.
+            if (focusInList && position >= 0 && !pendingScroll) focusPosition(position)
         } else if (state.selected != lastSelected) {
             // Selezione cambiata dal telefono: sposto il focus se l'utente sta navigando
             // l'elenco, altrimenti mi limito a scorrere (non rubo il focus al campo di ricerca).
@@ -764,6 +825,149 @@ class TvMainActivity : AppCompatActivity() {
                 if (list.hasFocus()) focusPosition(position) else list.scrollToPosition(position)
             }
         }
+        if (pendingScroll) {
+            lastAppliedScroll = scrollKey
+            applyRemoteScroll(state.scrollTop, keepFocus = focusInList || list.hasFocus())
+        }
+    }
+
+    /**
+     * Porta in cima all'elenco la riga che il telefono mostra per prima. Se l'elenco aveva il
+     * focus lo tengo su una riga visibile: la selezionata se è ancora a schermo, altrimenti la
+     * prima. Senza questo passaggio la riga con il focus, uscita dallo schermo e riciclata,
+     * lascerebbe il focus ad Android, che lo darebbe al primo pulsante del pannello laterale.
+     */
+    private fun applyRemoteScroll(index: Int, keepFocus: Boolean) {
+        val position = adapter.positionOf(index)
+        if (position < 0) return
+        val lm = list.layoutManager as LinearLayoutManager
+        lm.scrollToPositionWithOffset(position, 0)
+        if (!keepFocus) return
+        list.post {
+            val first = lm.findFirstCompletelyVisibleItemPosition()
+            val last = lm.findLastCompletelyVisibleItemPosition()
+            if (first == RecyclerView.NO_POSITION) return@post
+            val selectedPosition = adapter.positionOf(controller.state.value.selected)
+            val target = if (selectedPosition in first..last) selectedPosition else first
+            // Se cambia riga, onSelect la comunica al controller (e quindi al telefono).
+            list.findViewHolderForAdapterPosition(target)?.itemView?.requestFocus()
+        }
+    }
+
+    // ------------------------------------------------------------------ operazioni sui file
+
+    /** Sincronizzazione, appunti e operazione in corso. */
+    private fun renderFileStatus(status: TvStatus) {
+        if (syncSwitch.isChecked != status.synced) {
+            applyingRemote = true
+            syncSwitch.isChecked = status.synced
+            applyingRemote = false
+        }
+        opBar.visibility = if (status.busy) View.VISIBLE else View.GONE
+        if (status.busy) {
+            val percent = if (status.opPermille >= 0) " — ${status.opPermille / 10}%" else ""
+            opText.text = status.opText + percent
+            opProgress.isIndeterminate = status.opPermille < 0
+            if (status.opPermille >= 0) opProgress.progress = status.opPermille
+        }
+        clipText.visibility = if (status.hasClip) View.VISIBLE else View.GONE
+        if (status.hasClip) {
+            clipText.text = getString(if (status.clipMove) R.string.clip_status_move else R.string.clip_status_copy, status.clipName.orEmpty())
+        }
+    }
+
+    /**
+     * Menu delle operazioni sui file per la voce [index] dell'elenco della TV (o per la sola
+     * cartella aperta se nessuna voce è selezionata). Mostro solo le azioni possibili qui: niente
+     * operazioni sui volumi, "Incolla" e "Nuova cartella" solo dentro una cartella.
+     */
+    private fun showFileActions(index: Int) {
+        val listing = controller.listing.value
+        val status = controller.status.value
+        val entry = listing.entries.getOrNull(index)
+        val insideFolder = listing.crumbs.isNotEmpty()
+        val labels = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        fun add(label: String, action: () -> Unit) {
+            labels += label
+            actions += action
+        }
+        if (entry != null && entry.kind != EntryKind.VOLUME) {
+            add(getString(R.string.action_copy)) { controller.submit(ClientMessage.FileOp(FileOpKind.COPY, listing.seq, index)) }
+            add(getString(R.string.action_cut)) { controller.submit(ClientMessage.FileOp(FileOpKind.CUT, listing.seq, index)) }
+            add(getString(R.string.action_rename)) { showRenameDialog(listing.seq, index, entry) }
+            add(getString(R.string.action_delete)) { confirmDelete(listing.seq, index, entry) }
+        }
+        if (insideFolder && status.hasClip && !status.busy) {
+            add(getString(R.string.action_paste, status.clipName.orEmpty())) { controller.submit(ClientMessage.FileOp(FileOpKind.PASTE)) }
+        }
+        if (insideFolder) add(getString(R.string.action_mkdir)) { showNameDialog(getString(R.string.mkdir_title), "") { name -> controller.submit(ClientMessage.FileOp(FileOpKind.MKDIR, name = name)) } }
+        if (status.hasClip) add(getString(R.string.action_clear_clip)) { controller.submit(ClientMessage.FileOp(FileOpKind.CLEAR)) }
+        if (status.opCancelable) add(getString(R.string.action_cancel_op)) { controller.submit(ClientMessage.FileOp(FileOpKind.CANCEL)) }
+        if (labels.isEmpty()) {
+            toast(getString(R.string.actions_none))
+            return
+        }
+        val title = when {
+            entry == null -> listing.crumbs.lastOrNull() ?: getString(R.string.app_name)
+            entry.kind.isContainer -> getString(R.string.actions_title_folder, entry.name)
+            else -> getString(R.string.actions_title, entry.name)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
+            .setNegativeButton(R.string.cancel, null)
+            .showTracked()
+    }
+
+    private fun showRenameDialog(seq: Int, index: Int, entry: Entry) {
+        showNameDialog(getString(R.string.rename_title, entry.name), entry.name, selectBaseOnly = !entry.kind.isContainer) { name ->
+            controller.submit(ClientMessage.FileOp(FileOpKind.RENAME, seq, index, name))
+        }
+    }
+
+    /**
+     * Dialog con un campo di testo per un nome (rinomina, nuova cartella). Per i file seleziono
+     * solo la parte prima dell'estensione: di solito si cambia il nome, non il tipo.
+     */
+    private fun showNameDialog(title: String, initial: String, selectBaseOnly: Boolean = false, onConfirm: (String) -> Unit) {
+        val input = EditText(this).apply {
+            setText(initial)
+            hint = getString(R.string.mkdir_hint)
+            isSingleLine = true
+            imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            val end = if (selectBaseOnly) FileNames.split(initial).first.length else initial.length
+            setSelection(0, end.coerceIn(0, initial.length))
+        }
+        val container = FrameLayout(this).apply {
+            val pad = dp(24)
+            setPadding(pad, dp(8), pad, 0)
+            addView(input)
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(container)
+            .setPositiveButton(R.string.confirm) { _, _ -> onConfirm(input.text.toString()) }
+            .setNegativeButton(R.string.cancel, null)
+            .showTracked()
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId != EditorInfo.IME_ACTION_DONE) return@setOnEditorActionListener false
+            onConfirm(input.text.toString())
+            dialog.dismiss()
+            true
+        }
+        input.requestFocus()
+    }
+
+    private fun confirmDelete(seq: Int, index: Int, entry: Entry) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.delete_title, entry.name))
+            .setMessage(if (entry.kind.isContainer) R.string.delete_message_folder else R.string.delete_message_file)
+            .setPositiveButton(R.string.action_delete) { _, _ -> controller.submit(ClientMessage.FileOp(FileOpKind.DELETE, seq, index)) }
+            // Il pulsante sicuro riceve il focus: un OK distratto del telecomando non elimina nulla.
+            .setNegativeButton(R.string.cancel, null)
+            .showTracked()
+            .also { it.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
     }
 
     private fun syncSearchField(state: RemoteState) {
@@ -822,26 +1026,71 @@ class TvMainActivity : AppCompatActivity() {
 
     // ------------------------------------------------------------------ permessi
 
+    /**
+     * All'avvio: i permessi di lettura si chiedono sempre se mancano (senza, l'app non mostra i
+     * dischi); l'intera procedura solo se non è già stata completata per questa versione.
+     */
     private fun ensurePermissions() {
-        if (!StorageAccess.hasRuntime(this)) {
-            permissionLauncher.launch(StorageAccess.runtimePermissions())
-        } else {
-            offerFullAccessOnce()
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val version = installedVersionCode()
+        if (prefs.getLong(KEY_SETUP_VERSION, -1L) == version && StorageAccess.hasRuntime(this)) return
+        startSetup()
+    }
+
+    private fun startSetup() {
+        if (setupRunning) return
+        setupRunning = true
+        setupAsked.clear()
+        nextSetupStep()
+    }
+
+    /** Esegue il primo passo non ancora soddisfatto né già chiesto in questo giro. */
+    private fun nextSetupStep() {
+        if (!setupRunning || isFinishing) return
+        when {
+            !StorageAccess.hasRuntime(this) && setupAsked.add(STEP_RUNTIME) ->
+                permissionLauncher.launch(StorageAccess.runtimePermissions())
+            !StorageAccess.hasFullAccess(this) && StorageAccess.fullAccessIntents(this).isNotEmpty() && setupAsked.add(STEP_FULL) ->
+                askSetupStep(R.string.setup_full_title, R.string.setup_full_message) { openFullAccessSettings() }
+            StorageAccess.needsOverlay(this) && setupAsked.add(STEP_OVERLAY) ->
+                askSetupStep(R.string.setup_overlay_title, R.string.setup_overlay_message) { openOverlaySettings() }
+            else -> {
+                setupRunning = false
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putLong(KEY_SETUP_VERSION, installedVersionCode()).apply()
+                Log.i(TAG, "Procedura permessi conclusa: completo=${StorageAccess.hasFullAccess(this)}, sovrapposizione=${!StorageAccess.needsOverlay(this)}")
+            }
         }
     }
 
-    /** Propongo l'accesso completo una sola volta: poi resta il pulsante nel pannello. */
-    private fun offerFullAccessOnce() {
-        if (StorageAccess.hasFullAccess(this)) return
-        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        if (prefs.getBoolean(KEY_FULL_ACCESS_ASKED, false)) return
-        prefs.edit().putBoolean(KEY_FULL_ACCESS_ASKED, true).apply()
+    /**
+     * Spiega un permesso speciale prima di aprire la schermata di sistema. Con «Non ora» (o
+     * Indietro) la procedura prosegue con il passo successivo; con «Continua» prosegue al ritorno
+     * dalla schermata (settingsLauncher).
+     */
+    private fun askSetupStep(title: Int, message: Int, open: () -> Unit) {
         AlertDialog.Builder(this)
-            .setTitle(R.string.perm_full_title)
-            .setMessage(R.string.perm_full_message)
-            .setPositiveButton(R.string.perm_open_settings) { _, _ -> openFullAccessSettings() }
-            .setNegativeButton(R.string.perm_not_now, null)
+            .setTitle(title)
+            .setMessage(message)
+            .setCancelable(true)
+            .setOnCancelListener { nextSetupStep() }
+            .setPositiveButton(R.string.setup_continue) { _, _ -> open() }
+            .setNegativeButton(R.string.perm_not_now) { _, _ -> nextSetupStep() }
             .showTracked()
+    }
+
+    /** Un'operazione sui file è fallita perché manca l'accesso: lo richiedo subito. */
+    private fun onAccessNeeded() {
+        controller.consumeAccessRequest()
+        if (setupRunning) return
+        if (StorageAccess.hasRuntime(this) && StorageAccess.hasFullAccess(this)) return
+        startSetup()
+    }
+
+    private fun installedVersionCode(): Long = try {
+        PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
+    } catch (e: PackageManager.NameNotFoundException) {
+        Log.w(TAG, "Versione installata non leggibile", e)
+        0L
     }
 
     private fun requestAccess() {
@@ -864,17 +1113,20 @@ class TvMainActivity : AppCompatActivity() {
         showAdbHint("MANAGE_EXTERNAL_STORAGE")
     }
 
+    /** Schermata del permesso di sovrapposizione, con il suggerimento ADB se la TV non la offre. */
+    private fun openOverlaySettings() {
+        try {
+            settingsLauncher.launch(StorageAccess.overlayIntent(this))
+        } catch (_: ActivityNotFoundException) {
+            showAdbHint("SYSTEM_ALERT_WINDOW")
+        }
+    }
+
     private fun requestOverlay() {
         AlertDialog.Builder(this)
             .setTitle(R.string.overlay_title)
             .setMessage(R.string.overlay_message)
-            .setPositiveButton(R.string.perm_open_settings) { _, _ ->
-                try {
-                    settingsLauncher.launch(StorageAccess.overlayIntent(this))
-                } catch (_: ActivityNotFoundException) {
-                    showAdbHint("SYSTEM_ALERT_WINDOW")
-                }
-            }
+            .setPositiveButton(R.string.perm_open_settings) { _, _ -> openOverlaySettings() }
             .setNegativeButton(R.string.perm_not_now, null)
             .showTracked()
     }
@@ -883,7 +1135,9 @@ class TvMainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.perm_adb_title)
             .setMessage(getString(R.string.perm_adb_message, packageName, operation))
-            .setPositiveButton(R.string.ok, null)
+            // Se la procedura dei permessi è in corso, prosegue con il passo successivo.
+            .setOnCancelListener { nextSetupStep() }
+            .setPositiveButton(R.string.ok) { _, _ -> nextSetupStep() }
             .showTracked()
     }
 
@@ -978,7 +1232,11 @@ class TvMainActivity : AppCompatActivity() {
     private companion object {
         const val TAG = "TvMainActivity"
         const val PREFS = "tv_ui"
-        const val KEY_FULL_ACCESS_ASKED = "full_access_asked"
+        /** versionCode per cui la procedura dei permessi è già stata eseguita. */
+        const val KEY_SETUP_VERSION = "permission_setup_version"
+        const val STEP_RUNTIME = "runtime"
+        const val STEP_FULL = "full"
+        const val STEP_OVERLAY = "overlay"
         const val ECHO_WINDOW_MS = 1_500L
         const val CONTROLLER_TIMEOUT_MS = 4_000
 

@@ -28,6 +28,7 @@ object ProtocolCodec {
         is ServerMessage.Toast -> JSONObject().put("t", "toast").put("text", message.text)
         is ServerMessage.PlaybackMsg -> encodePlayback(message.playback)
         is ServerMessage.ProgressMsg -> encodeProgress(message.progress)
+        is ServerMessage.StatusMsg -> encodeStatus(message.status)
         is ServerMessage.Error -> JSONObject().put("t", "error").put("text", message.text)
     }.toString()
 
@@ -45,6 +46,7 @@ object ProtocolCodec {
             "toast" -> ServerMessage.Toast(o.optString("text"))
             "playback" -> ServerMessage.PlaybackMsg(decodePlayback(o))
             "progress" -> ServerMessage.ProgressMsg(decodeProgress(o))
+            "status" -> ServerMessage.StatusMsg(decodeStatus(o))
             "error" -> ServerMessage.Error(o.optString("text"))
             else -> null
         }
@@ -105,6 +107,7 @@ object ProtocolCodec {
         .put("selected", s.selected)
         .putOpt("message", s.message)
         .putOpt("playing", s.nowPlaying)
+        .put("top", s.scrollTop)
 
     private fun decodeState(o: JSONObject): RemoteState = RemoteState(
         listingSeq = o.optInt("seq"),
@@ -114,6 +117,29 @@ object ProtocolCodec {
         selected = o.optInt("selected", -1),
         message = if (o.isNull("message")) null else o.optString("message"),
         nowPlaying = if (o.isNull("playing")) null else o.optString("playing"),
+        // Assente nei server precedenti alla v1.9: nessuno scroll indicato.
+        scrollTop = o.optInt("top", -1).coerceAtLeast(-1),
+    )
+
+    private fun encodeStatus(s: TvStatus): JSONObject = JSONObject()
+        .put("t", "status")
+        .put("sync", s.synced)
+        .put("clip", s.clipCount)
+        .putOpt("clipName", s.clipName)
+        .put("clipMove", s.clipMove)
+        .putOpt("op", s.opText)
+        .put("opP", s.opPermille)
+        .put("opCancel", s.opCancelable)
+
+    private fun decodeStatus(o: JSONObject): TvStatus = TvStatus(
+        synced = o.optBoolean("sync", true),
+        clipCount = o.optInt("clip", 0).coerceAtLeast(0),
+        clipName = if (o.isNull("clipName")) null else o.optString("clipName"),
+        clipMove = o.optBoolean("clipMove", false),
+        opText = if (o.isNull("op")) null else o.optString("op"),
+        // Fuori intervallo = non stimabile: la barra diventa indeterminata invece di sbagliare.
+        opPermille = o.optInt("opP", -1).let { if (it in 0..1000) it else -1 },
+        opCancelable = o.optBoolean("opCancel", false),
     )
 
     private fun encodePlayback(p: PlaybackState): JSONObject = JSONObject()
@@ -198,6 +224,14 @@ object ProtocolCodec {
         is ClientMessage.Layout -> JSONObject().put("t", "view").put("view", message.view.wire)
         is ClientMessage.Volume -> JSONObject().put("t", "volume").put("level", message.level)
         is ClientMessage.Ui -> JSONObject().put("t", "ui").put("cmd", message.command.wire)
+        is ClientMessage.Sync -> JSONObject().put("t", "sync").put("on", message.enabled)
+        is ClientMessage.Scroll -> JSONObject().put("t", "scroll").put("seq", message.seq).put("index", message.index)
+        is ClientMessage.FileOp -> JSONObject()
+            .put("t", "fop")
+            .put("op", message.op.wire)
+            .put("seq", message.seq)
+            .put("index", message.index)
+            .putOpt("name", message.name)
     }.toString()
 
     fun decodeClient(text: String): ClientMessage? = try {
@@ -223,11 +257,31 @@ object ProtocolCodec {
             // Il limite superiore dipende dalla TV: lo applica il server, qui escludo i negativi.
             "volume" -> ClientMessage.Volume(o.getInt("level").coerceAtLeast(0))
             "ui" -> UiCommand.fromWire(o.optString("cmd"))?.let { ClientMessage.Ui(it) }
+            "sync" -> ClientMessage.Sync(o.getBoolean("on"))
+            "scroll" -> ClientMessage.Scroll(o.getInt("seq"), o.getInt("index").coerceAtLeast(0))
+            "fop" -> decodeFileOp(o)
             else -> null
         }
     } catch (_: JSONException) {
         null
     }
 
+    /**
+     * Operazione sui file: scarto subito quelle incomplete (voce o nome mancanti) invece di
+     * lasciarle arrivare al controller. Il nome viene validato davvero sulla TV ([com.icarocomix.icaromanagertv.common.files.FileNames]).
+     */
+    private fun decodeFileOp(o: JSONObject): ClientMessage.FileOp? {
+        val op = FileOpKind.fromWire(o.optString("op")) ?: return null
+        val seq = o.optInt("seq", -1)
+        val index = o.optInt("index", -1)
+        val name = if (o.isNull("name")) null else o.optString("name").take(MAX_NAME_LENGTH)
+        if (op.needsEntry && (seq < 0 || index < 0)) return null
+        if (op.needsName && name.isNullOrBlank()) return null
+        return ClientMessage.FileOp(op, seq, index, name)
+    }
+
     const val MAX_QUERY_LENGTH = 200
+
+    /** Più lungo di qualunque nome valido (255 byte UTF-8): il taglio vero lo fa la validazione. */
+    const val MAX_NAME_LENGTH = 512
 }

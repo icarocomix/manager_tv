@@ -86,6 +86,57 @@
     <string name="player_subtitles">Sottotitoli</string>
     <string name="player_settings">Impostazioni</string>
 
+
+    <!-- Sincronizzazione, operazioni sui file e trasferimenti (v1.9) -->
+    <string name="sync_switch">Sincronizza con la TV (cartelle e scorrimento)</string>
+    <string name="sync_off_hint">Non sincronizzato: telefono e telecomando della TV navigano separatamente</string>
+    <string name="cmd_upload">Carica</string>
+    <string name="menu_mkdir">Nuova cartella</string>
+    <string name="actions_select_only">Evidenzia sulla TV</string>
+    <string name="action_copy">Copia</string>
+    <string name="action_cut">Taglia (sposta)</string>
+    <string name="action_rename">Rinomina</string>
+    <string name="action_delete">Elimina</string>
+    <string name="action_download">Scarica sul telefono</string>
+    <string name="actions_title_folder">Cartella «%1$s»</string>
+    <string name="paste_here">Incolla qui</string>
+    <string name="clip_copy">Appunti: «%1$s» (copia)</string>
+    <string name="clip_move">Appunti: «%1$s» (sposta)</string>
+    <string name="clip_clear">Svuota gli appunti</string>
+    <string name="op_cancel">Annulla l\'operazione</string>
+    <string name="rename_title">Rinomina «%1$s»</string>
+    <string name="mkdir_title">Nuova cartella sulla TV</string>
+    <string name="name_hint">Nome</string>
+    <string name="confirm">Conferma</string>
+    <string name="delete_title">Eliminare «%1$s» dalla TV?</string>
+    <string name="delete_message_file">Il file verrà eliminato definitivamente dal disco della TV.</string>
+    <string name="delete_message_folder">La cartella verrà eliminata definitivamente con tutto il suo contenuto.</string>
+    <string name="name_err_empty">Il nome non può essere vuoto</string>
+    <string name="name_err_reserved">Nome non consentito</string>
+    <string name="name_err_chars">Il nome non può contenere / \\ : * ? \" &lt; &gt; |</string>
+    <string name="name_err_long">Il nome è troppo lungo</string>
+    <string name="fileops_unsupported">La TV ha una versione di Manager TV senza operazioni sui file: aggiornala.</string>
+    <string name="upload_need_folder">Apri prima sulla TV la cartella di destinazione (un disco o una sua cartella)</string>
+    <string name="upload_title">Carica sulla TV in «%1$s»</string>
+    <string name="upload_copy">Copia dal telefono (l\'originale resta)</string>
+    <string name="upload_move">Sposta dal telefono (l\'originale viene eliminato)</string>
+    <string name="transfer_cancel">Annulla il trasferimento</string>
+    <string name="transfer_uploading">Invio alla TV: «%1$s»</string>
+    <string name="transfer_downloading">Ricezione dalla TV: «%1$s»</string>
+    <string name="transfer_queue">%1$s · altri %2$d in coda</string>
+    <string name="transfer_preparing">Preparazione del trasferimento…</string>
+    <string name="transfer_upload_done">%1$d file inviati alla TV</string>
+    <string name="transfer_upload_moved">%1$d file spostati sulla TV</string>
+    <string name="transfer_move_not_deleted">«%1$s» copiato sulla TV, ma non è stato possibile eliminarlo dal telefono</string>
+    <string name="transfer_download_done">«%1$s» salvato sul telefono</string>
+    <string name="transfer_failed">Trasferimento di «%1$s» non riuscito: %2$s</string>
+    <string name="transfer_cancelled">Trasferimento annullato</string>
+    <string name="transfer_no_tv">Non collegato alla TV</string>
+    <string name="transfer_unsupported">La TV ha una versione di Manager TV senza trasferimenti: aggiornala.</string>
+    <string name="transfer_channel">Trasferimenti con la TV</string>
+    <string name="transfer_notification_title">Manager TV · trasferimento</string>
+    <string name="transfer_size_unknown">dimensione sconosciuta</string>
+
     <string name="credits_description_mobile">Telecomando per Manager TV: trova da solo la TV nella rete Wi-Fi di casa, mostra in tempo reale le cartelle dei dischi USB collegati al televisore e permette di cercare con la tastiera del telefono, avviare video, musica e foto sulla TV e comandarne il player: pausa, salti, file precedente e successivo, ripresa dal punto interrotto e riproduzione automatica.</string>
     <string name="credits_libraries_mobile">Realizzata con AndroidX e OkHttp (Apache 2.0).</string>
 </resources>

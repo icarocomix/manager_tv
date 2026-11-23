@@ -81,7 +81,7 @@ class RemoteServerService : Service() {
     private fun startServer() {
         val name = LocalNetwork.deviceName(this)
         val started = try {
-            RemoteServer.start(app.controller, app.playback, app.logExporter, app.appScope, name, app.serverId, CreditsDialog.versionName(this))
+            RemoteServer.start(app, app.controller, app.files, app.playback, app.logExporter, app.appScope, name, app.serverId, CreditsDialog.versionName(this))
         } catch (e: IOException) {
             Log.e(TAG, "Server non avviato", e)
             app.publishServerInfo(TvApp.ServerInfo(running = false))
